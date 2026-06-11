@@ -5,3 +5,6 @@ CPL_Feature_Catalogue_Plant_Port.xlsx
 __pycache__/
 
 gdrive_cookies.txt
+
+dist/
+build/
