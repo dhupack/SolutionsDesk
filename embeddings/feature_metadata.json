@@ -1,0 +1,2076 @@
+[
+  {
+    "feature_id": "1",
+    "feature_name": "CPL / CPoL Summary Dashboard",
+    "row_number": 2,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 1,
+      "Feature Name": "CPL / CPoL Summary Dashboard",
+      "Bucket": "CPL - Analytics / Alerts",
+      "Feature Type": "Core",
+      "Module / Area": "Dashboard",
+      "What it does": "Single dashboard for plant or port operations, vehicle status, stage status, pending actions, and process health.",
+      "Business Value / Impact": "One-window operational control, faster review meetings, and common visibility for logistics, security, operations, and management.",
+      "Dependencies / Inputs": "Trip/stage data, user roles, vehicle master, process configuration",
+      "Sales Talking Point": "Start demos here: show how gate, yard, dock, weighbridge, and alerts come together in one screen."
+    }
+  },
+  {
+    "feature_id": "2",
+    "feature_name": "Digital Gate-In Authorization",
+    "row_number": 3,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 2,
+      "Feature Name": "Digital Gate-In Authorization",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Core",
+      "Module / Area": "Gate In / Gate Entry",
+      "What it does": "Captures vehicle arrival, validates gate eligibility, and records gate-in timestamp digitally.",
+      "Business Value / Impact": "Reduces paperwork and manual gate dependency while improving entry discipline and auditability.",
+      "Dependencies / Inputs": "Vehicle master, gate checklist, trip/order reference, user login",
+      "Sales Talking Point": "Position as the first control point for compliant plant entry."
+    }
+  },
+  {
+    "feature_id": "3",
+    "feature_name": "Digital Gate-Out Authorization",
+    "row_number": 4,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 3,
+      "Feature Name": "Digital Gate-Out Authorization",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Core",
+      "Module / Area": "Gate Out / Exit",
+      "What it does": "Digitally validates completion of required stages before permitting vehicle exit from plant or port.",
+      "Business Value / Impact": "Improves exit control, avoids missed documentation, and creates a clear digital trail.",
+      "Dependencies / Inputs": "Stage completion status, checklist status, exit approval rules",
+      "Sales Talking Point": "Useful for customers struggling with manual document return and gate-out permission."
+    }
+  },
+  {
+    "feature_id": "4",
+    "feature_name": "Vehicle Identification by RFID / ANPR / Manual Entry",
+    "row_number": 5,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 4,
+      "Feature Name": "Vehicle Identification by RFID / ANPR / Manual Entry",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Core",
+      "Module / Area": "Vehicle Identification",
+      "What it does": "Identifies vehicle using RFID reader, smart camera/ANPR, or controlled manual entry where required.",
+      "Business Value / Impact": "Reduces wrong vehicle tagging and speeds up gate, yard, and weighbridge processing.",
+      "Dependencies / Inputs": "RFID tags/readers, ANPR camera, vehicle master, manual override SOP",
+      "Sales Talking Point": "Explain this as flexible identification based on customer infrastructure maturity."
+    }
+  },
+  {
+    "feature_id": "5",
+    "feature_name": "Boom Barrier & Traffic Signal Integration",
+    "row_number": 6,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 5,
+      "Feature Name": "Boom Barrier & Traffic Signal Integration",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Core",
+      "Module / Area": "Gate Automation",
+      "What it does": "Controls vehicle movement through signals and boom barriers based on validation and process status.",
+      "Business Value / Impact": "Improves safety, removes uncontrolled movement, and supports automated gate discipline.",
+      "Dependencies / Inputs": "Boom barrier, traffic signal, controller, validation logic",
+      "Sales Talking Point": "Show how system approval physically controls vehicle movement."
+    }
+  },
+  {
+    "feature_id": "6",
+    "feature_name": "ULIP / Vahan / Sarathi Verification",
+    "row_number": 7,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 6,
+      "Feature Name": "ULIP / Vahan / Sarathi Verification",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Value Add",
+      "Module / Area": "Government Portal Integration",
+      "What it does": "Verifies vehicle and driver documents such as RC, fitness, permit, insurance, and driving license where integrations are enabled.",
+      "Business Value / Impact": "Improves compliance, reduces manual document checking, and helps prevent blacklisted/non-compliant entry.",
+      "Dependencies / Inputs": "Government portal access, vehicle number, driver details, integration scope",
+      "Sales Talking Point": "Position as compliance automation at the plant or port gate."
+    }
+  },
+  {
+    "feature_id": "7",
+    "feature_name": "Blacklist / Whitelist / Remarks Check",
+    "row_number": 8,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 7,
+      "Feature Name": "Blacklist / Whitelist / Remarks Check",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Core",
+      "Module / Area": "Compliance Validation",
+      "What it does": "Checks vehicle, driver, transporter, or vendor status against configurable blacklist/whitelist and remarks master.",
+      "Business Value / Impact": "Prevents restricted assets from entering and standardizes exception handling.",
+      "Dependencies / Inputs": "Blacklist/whitelist master, vehicle/driver/transporter master",
+      "Sales Talking Point": "Use this for customers needing security and vendor compliance control."
+    }
+  },
+  {
+    "feature_id": "8",
+    "feature_name": "Dynamic Gate Checklist Form",
+    "row_number": 9,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 8,
+      "Feature Name": "Dynamic Gate Checklist Form",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Core",
+      "Module / Area": "Checklist / Forms",
+      "What it does": "Digitizes gate checklist fields such as purpose, vehicle condition, document details, material, seal number, and security approval.",
+      "Business Value / Impact": "Reduces repetitive manual entry and creates searchable digital records.",
+      "Dependencies / Inputs": "Configurable checklist fields, user role, mobile/tablet/web access",
+      "Sales Talking Point": "Highlight that fields can be configured as per plant or port SOP."
+    }
+  },
+  {
+    "feature_id": "9",
+    "feature_name": "Driver & Vehicle Document Capture",
+    "row_number": 10,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 9,
+      "Feature Name": "Driver & Vehicle Document Capture",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Core",
+      "Module / Area": "Documentation",
+      "What it does": "Captures or validates driver and vehicle documents during entry and key operational stages.",
+      "Business Value / Impact": "Improves readiness for audit and reduces missing document delays.",
+      "Dependencies / Inputs": "Document list, image/PDF upload permission, validation workflow",
+      "Sales Talking Point": "Useful where physical papers currently move from gate to office and back to exit."
+    }
+  },
+  {
+    "feature_id": "10",
+    "feature_name": "Geo-Tagged Seal / Vehicle Image Capture",
+    "row_number": 11,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 10,
+      "Feature Name": "Geo-Tagged Seal / Vehicle Image Capture",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Value Add",
+      "Module / Area": "Image Evidence",
+      "What it does": "Captures vehicle, cargo, and seal images with location and timestamp at gate, loading, unloading, or inspection stages.",
+      "Business Value / Impact": "Strengthens shipment integrity, reduces disputes, and enables evidence-backed investigation.",
+      "Dependencies / Inputs": "Mobile/tablet camera, location permission, configured image fields",
+      "Sales Talking Point": "Position as audit-proof visibility, especially for sealing, condition checks, and exceptions."
+    }
+  },
+  {
+    "feature_id": "11",
+    "feature_name": "Digital Security Approval & Audit Trail",
+    "row_number": 12,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 11,
+      "Feature Name": "Digital Security Approval & Audit Trail",
+      "Bucket": "CPL - Gate & Compliance",
+      "Feature Type": "Core",
+      "Module / Area": "Audit Trail",
+      "What it does": "Records who approved entry/exit, when approval happened, and which validations were completed or overridden.",
+      "Business Value / Impact": "Creates accountability and reduces dependency on handwritten gate passes.",
+      "Dependencies / Inputs": "User roles, approval workflow, timestamp capture",
+      "Sales Talking Point": "Show audit trail for every gate decision."
+    }
+  },
+  {
+    "feature_id": "12",
+    "feature_name": "Yard Entry / Parking Lot Capture",
+    "row_number": 13,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 12,
+      "Feature Name": "Yard Entry / Parking Lot Capture",
+      "Bucket": "CPL - Yard / Parking",
+      "Feature Type": "Core",
+      "Module / Area": "Yard Entry",
+      "What it does": "Records vehicle movement from gate into yard or parking area with stage timestamp.",
+      "Business Value / Impact": "Improves yard visibility and helps measure gate-to-yard turnaround time.",
+      "Dependencies / Inputs": "Gate-in event, yard stage configuration, vehicle/trip ID",
+      "Sales Talking Point": "Use for sites where parking is managed manually after entry."
+    }
+  },
+  {
+    "feature_id": "13",
+    "feature_name": "Digital Parking Slot / Zone Allocation",
+    "row_number": 14,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 13,
+      "Feature Name": "Digital Parking Slot / Zone Allocation",
+      "Bucket": "CPL - Yard / Parking",
+      "Feature Type": "Core",
+      "Module / Area": "Parking Management",
+      "What it does": "Assigns parking area, slot, or zone digitally based on availability, vehicle purpose, and operational need.",
+      "Business Value / Impact": "Reduces congestion and improves vehicle retrieval for loading/unloading.",
+      "Dependencies / Inputs": "Parking layout, slot/zone master, queue rules",
+      "Sales Talking Point": "Position as a practical step toward organized yard flow."
+    }
+  },
+  {
+    "feature_id": "14",
+    "feature_name": "Digital Yard Map / Kanban View",
+    "row_number": 15,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 14,
+      "Feature Name": "Digital Yard Map / Kanban View",
+      "Bucket": "CPL - Yard / Parking",
+      "Feature Type": "Analytics",
+      "Module / Area": "Yard Visualization",
+      "What it does": "Provides visual yard or Kanban-style status view of vehicles by stage, location, and pending action.",
+      "Business Value / Impact": "Enables supervisors to identify bottlenecks quickly and move vehicles proactively.",
+      "Dependencies / Inputs": "Yard master, stage data, vehicle status updates",
+      "Sales Talking Point": "Use as the operations-room view for live yard control."
+    }
+  },
+  {
+    "feature_id": "15",
+    "feature_name": "Mobile-Based Yard Execution",
+    "row_number": 16,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 15,
+      "Feature Name": "Mobile-Based Yard Execution",
+      "Bucket": "CPL - Yard / Parking",
+      "Feature Type": "Core",
+      "Module / Area": "Mobile App",
+      "What it does": "Allows drivers, yard jockeys, supervisors, or security users to execute yard steps through mobile or tablet without heavy hardware dependency.",
+      "Business Value / Impact": "Fast deployment, lower infrastructure dependency, and better adoption at open yards.",
+      "Dependencies / Inputs": "Mobile app access, user roles, geo-fence/process rules",
+      "Sales Talking Point": "Best fit for sites that want a digital start before full hardware automation."
+    }
+  },
+  {
+    "feature_id": "16",
+    "feature_name": "Smart Driver Tasking & Push Notifications",
+    "row_number": 17,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 16,
+      "Feature Name": "Smart Driver Tasking & Push Notifications",
+      "Bucket": "CPL - Yard / Parking",
+      "Feature Type": "Value Add",
+      "Module / Area": "Task Assignment",
+      "What it does": "Assigns next task to driver or yard user and pushes instructions for parking, un-parking, dock movement, or exit.",
+      "Business Value / Impact": "Reduces manual calling and coordination gaps between parking, loading bay, and gate.",
+      "Dependencies / Inputs": "Mobile app, task logic, user/device mapping",
+      "Sales Talking Point": "Use this for customers facing parking-to-loading communication gaps."
+    }
+  },
+  {
+    "feature_id": "17",
+    "feature_name": "Unpark / Move-to-Dock Workflow",
+    "row_number": 18,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 17,
+      "Feature Name": "Unpark / Move-to-Dock Workflow",
+      "Bucket": "CPL - Yard / Parking",
+      "Feature Type": "Core",
+      "Module / Area": "Yard Movement",
+      "What it does": "Captures vehicle release from parking and movement toward dock/loading/unloading zone.",
+      "Business Value / Impact": "Improves stage visibility and reduces confusion on which vehicle should move next.",
+      "Dependencies / Inputs": "Parking allocation, dock call, user confirmation",
+      "Sales Talking Point": "Show as a simple workflow to connect yard and dock operations."
+    }
+  },
+  {
+    "feature_id": "18",
+    "feature_name": "Queue Management",
+    "row_number": 19,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 18,
+      "Feature Name": "Queue Management",
+      "Bucket": "CPL - Yard / Parking",
+      "Feature Type": "Value Add",
+      "Module / Area": "Queue Logic",
+      "What it does": "Maintains vehicle queue by process, material, bay, dock, weighbridge, or priority logic.",
+      "Business Value / Impact": "Improves throughput and reduces waiting time at bottleneck points.",
+      "Dependencies / Inputs": "Queue rules, priority logic, stage timestamps",
+      "Sales Talking Point": "Position as a productivity lever for high-volume plants and ports."
+    }
+  },
+  {
+    "feature_id": "19",
+    "feature_name": "Yard TAT / Idle Time Tracking",
+    "row_number": 20,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 19,
+      "Feature Name": "Yard TAT / Idle Time Tracking",
+      "Bucket": "CPL - Yard / Parking",
+      "Feature Type": "Analytics",
+      "Module / Area": "Delay / Detention",
+      "What it does": "Tracks how long each vehicle remains in yard, parking, waiting, or idle stages.",
+      "Business Value / Impact": "Enables detention control, bottleneck identification, and SLA monitoring.",
+      "Dependencies / Inputs": "Stage timestamps, parking/dock/weighbridge events",
+      "Sales Talking Point": "Use TAT analytics to move conversation from visibility to improvement."
+    }
+  },
+  {
+    "feature_id": "20",
+    "feature_name": "Dock Allocation",
+    "row_number": 21,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 20,
+      "Feature Name": "Dock Allocation",
+      "Bucket": "CPL - Dock / Loading",
+      "Feature Type": "Core",
+      "Module / Area": "Dock Management",
+      "What it does": "Assigns vehicle to loading or unloading dock based on queue, availability, process type, and real-time yard status.",
+      "Business Value / Impact": "Improves dock utilization and reduces manual bay calling.",
+      "Dependencies / Inputs": "Dock master, queue rules, loading/unloading plan",
+      "Sales Talking Point": "Show how CPL connects yard waiting vehicles to dock operations."
+    }
+  },
+  {
+    "feature_id": "21",
+    "feature_name": "Dock-In / Dock-Out Capture",
+    "row_number": 22,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 21,
+      "Feature Name": "Dock-In / Dock-Out Capture",
+      "Bucket": "CPL - Dock / Loading",
+      "Feature Type": "Core",
+      "Module / Area": "Dock Execution",
+      "What it does": "Captures exact vehicle arrival and departure at dock or loading/unloading area.",
+      "Business Value / Impact": "Measures dock productivity and provides stage-wise accountability.",
+      "Dependencies / Inputs": "Dock user action, RFID/manual/mobile capture, stage configuration",
+      "Sales Talking Point": "Useful to quantify loading and unloading delays."
+    }
+  },
+  {
+    "feature_id": "22",
+    "feature_name": "Loading / Unloading Stage Checklist",
+    "row_number": 23,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 22,
+      "Feature Name": "Loading / Unloading Stage Checklist",
+      "Bucket": "CPL - Dock / Loading",
+      "Feature Type": "Core",
+      "Module / Area": "Checklist / Forms",
+      "What it does": "Digitizes loading/unloading checks such as material, quantity, condition, seal, operator confirmation, and remarks.",
+      "Business Value / Impact": "Standardizes process adherence and improves audit readiness.",
+      "Dependencies / Inputs": "Configurable checklist, user role, process type",
+      "Sales Talking Point": "Position as a configurable digital SOP for warehouse, dock, and operations teams."
+    }
+  },
+  {
+    "feature_id": "23",
+    "feature_name": "Loading / Unloading Image Evidence",
+    "row_number": 24,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 23,
+      "Feature Name": "Loading / Unloading Image Evidence",
+      "Bucket": "CPL - Dock / Loading",
+      "Feature Type": "Value Add",
+      "Module / Area": "Image Evidence",
+      "What it does": "Captures photos of loaded/unloaded vehicle, material, seal, or cargo condition at defined stages.",
+      "Business Value / Impact": "Reduces dispute and supports investigation for damage, shortage, or wrong loading/unloading.",
+      "Dependencies / Inputs": "Mobile/tablet camera, image rules, timestamp and location capture",
+      "Sales Talking Point": "Good feature for high-value, export, or compliance-sensitive movements."
+    }
+  },
+  {
+    "feature_id": "24",
+    "feature_name": "Material / Loading Acknowledgement",
+    "row_number": 25,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 24,
+      "Feature Name": "Material / Loading Acknowledgement",
+      "Bucket": "CPL - Dock / Loading",
+      "Feature Type": "Core",
+      "Module / Area": "Loading Confirmation",
+      "What it does": "Records loading or unloading completion with user confirmation and optional item/material-level remarks.",
+      "Business Value / Impact": "Improves closure discipline and reduces manual proof dependency.",
+      "Dependencies / Inputs": "Material/process details, user confirmation, optional integration with WMS/ERP",
+      "Sales Talking Point": "Explain as the digital replacement for handwritten loading confirmation."
+    }
+  },
+  {
+    "feature_id": "25",
+    "feature_name": "Quality / Safety Recheck Stage",
+    "row_number": 26,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 25,
+      "Feature Name": "Quality / Safety Recheck Stage",
+      "Bucket": "CPL - Dock / Loading",
+      "Feature Type": "Value Add",
+      "Module / Area": "Quality / Safety",
+      "What it does": "Adds optional recheck point before exit or after loading/unloading for safety, quality, or compliance verification.",
+      "Business Value / Impact": "Reduces missed checks and supports regulated operations.",
+      "Dependencies / Inputs": "Recheck checklist, approval roles, stage configuration",
+      "Sales Talking Point": "Useful for plants with safety audits or material quality checks."
+    }
+  },
+  {
+    "feature_id": "26",
+    "feature_name": "Weighbridge Eligibility & Diversion Logic",
+    "row_number": 27,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 26,
+      "Feature Name": "Weighbridge Eligibility & Diversion Logic",
+      "Bucket": "CPL - Weighbridge",
+      "Feature Type": "Core",
+      "Module / Area": "Weighbridge Routing",
+      "What it does": "Determines whether vehicle should go to weighbridge based on material, process, gate input, or operational rule.",
+      "Business Value / Impact": "Avoids unnecessary weighment and standardizes routing decisions.",
+      "Dependencies / Inputs": "Material/process logic, gate data, weighbridge assignment rules",
+      "Sales Talking Point": "Use for sites where staff manually decide weighbridge routing."
+    }
+  },
+  {
+    "feature_id": "27",
+    "feature_name": "RFID-Based Weighbridge Identification",
+    "row_number": 28,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 27,
+      "Feature Name": "RFID-Based Weighbridge Identification",
+      "Bucket": "CPL - Weighbridge",
+      "Feature Type": "Core",
+      "Module / Area": "Weighbridge Automation",
+      "What it does": "Identifies vehicle at weighbridge using RFID tag or configured digital identity before allowing weighing.",
+      "Business Value / Impact": "Reduces oral vehicle verification and wrong trip selection.",
+      "Dependencies / Inputs": "RFID tag, reader, vehicle/trip mapping",
+      "Sales Talking Point": "Show as the key control to reduce manual TPL/vehicle search."
+    }
+  },
+  {
+    "feature_id": "28",
+    "feature_name": "Weighbridge Automation - Signal & Barrier Control",
+    "row_number": 29,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 28,
+      "Feature Name": "Weighbridge Automation - Signal & Barrier Control",
+      "Bucket": "CPL - Weighbridge",
+      "Feature Type": "Core",
+      "Module / Area": "Weighbridge Automation",
+      "What it does": "Controls vehicle movement onto and off the weighbridge using traffic signals and boom barriers.",
+      "Business Value / Impact": "Improves safety and avoids unauthorized or premature movement.",
+      "Dependencies / Inputs": "Signal, barrier, controller, vehicle validation logic",
+      "Sales Talking Point": "Pair this with RFID and weight capture for full WB automation story."
+    }
+  },
+  {
+    "feature_id": "29",
+    "feature_name": "Alignment Sensors & PA Guidance",
+    "row_number": 30,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 29,
+      "Feature Name": "Alignment Sensors & PA Guidance",
+      "Bucket": "CPL - Weighbridge",
+      "Feature Type": "Value Add",
+      "Module / Area": "Vehicle Alignment",
+      "What it does": "Uses sensors and PA announcements to guide driver for correct vehicle positioning on weighbridge.",
+      "Business Value / Impact": "Improves weighment accuracy and reduces rework caused by misalignment.",
+      "Dependencies / Inputs": "Proximity sensors, PA system, automation controller",
+      "Sales Talking Point": "Position as a throughput and accuracy improvement for busy weighbridges."
+    }
+  },
+  {
+    "feature_id": "30",
+    "feature_name": "Digital Gross / Tare / Net Weight Capture",
+    "row_number": 31,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 30,
+      "Feature Name": "Digital Gross / Tare / Net Weight Capture",
+      "Bucket": "CPL - Weighbridge",
+      "Feature Type": "Core",
+      "Module / Area": "Weight Integration",
+      "What it does": "Captures weight digitally from weighbridge indicator or integration layer and maps it to the correct vehicle/trip.",
+      "Business Value / Impact": "Reduces manual entry error and improves weight data reliability.",
+      "Dependencies / Inputs": "Weighbridge indicator integration, trip/vehicle mapping",
+      "Sales Talking Point": "This is the core automation outcome customers expect from WB modernization."
+    }
+  },
+  {
+    "feature_id": "31",
+    "feature_name": "Tare Weight Master Validation",
+    "row_number": 32,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 31,
+      "Feature Name": "Tare Weight Master Validation",
+      "Bucket": "CPL - Weighbridge",
+      "Feature Type": "Value Add",
+      "Module / Area": "Weight Validation",
+      "What it does": "Maintains tare reference and validates actual weighment against expected values or configured tolerance.",
+      "Business Value / Impact": "Supports fraud control, exception detection, and faster validation.",
+      "Dependencies / Inputs": "Tare master, tolerance rules, vehicle category",
+      "Sales Talking Point": "Use where customer wants system-driven weight exception checks."
+    }
+  },
+  {
+    "feature_id": "32",
+    "feature_name": "Smart Camera Weighbridge Evidence",
+    "row_number": 33,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 32,
+      "Feature Name": "Smart Camera Weighbridge Evidence",
+      "Bucket": "CPL - Weighbridge",
+      "Feature Type": "Value Add",
+      "Module / Area": "Image Evidence",
+      "What it does": "Captures vehicle or container image at weighbridge and links it to weighment record.",
+      "Business Value / Impact": "Improves evidence quality for disputes, audits, and exception investigations.",
+      "Dependencies / Inputs": "Smart camera, weighment event trigger, storage policy",
+      "Sales Talking Point": "Show as visual proof of which vehicle was weighed."
+    }
+  },
+  {
+    "feature_id": "33",
+    "feature_name": "Auto Weighment Slip & Exception Workflow",
+    "row_number": 34,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 33,
+      "Feature Name": "Auto Weighment Slip & Exception Workflow",
+      "Bucket": "CPL - Weighbridge",
+      "Feature Type": "Core",
+      "Module / Area": "Slip / Exception",
+      "What it does": "Generates weighment slip and triggers configured workflow for excess/short weight or other exceptions.",
+      "Business Value / Impact": "Speeds up driver handover and creates structured exception resolution trail.",
+      "Dependencies / Inputs": "Printer, weight logic, approval/remark workflow",
+      "Sales Talking Point": "Replace manual exception slip handling with system-led tracking."
+    }
+  },
+  {
+    "feature_id": "34",
+    "feature_name": "Asset Tracking Dashboard",
+    "row_number": 35,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 34,
+      "Feature Name": "Asset Tracking Dashboard",
+      "Bucket": "CPL - Assets / Workforce",
+      "Feature Type": "Core",
+      "Module / Area": "Asset Visibility",
+      "What it does": "Shows movement and status of assets such as yard equipment, mobile assets, or configured plant/port resources.",
+      "Business Value / Impact": "Improves utilization and reduces blind spots for internal assets.",
+      "Dependencies / Inputs": "Asset master, GPS/BLE/RFID/mobile data source as applicable",
+      "Sales Talking Point": "Use for forklift, crane, mobile equipment, or plant asset visibility discussions."
+    }
+  },
+  {
+    "feature_id": "35",
+    "feature_name": "User / Employee Tracking Dashboard",
+    "row_number": 36,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 35,
+      "Feature Name": "User / Employee Tracking Dashboard",
+      "Bucket": "CPL - Assets / Workforce",
+      "Feature Type": "Value Add",
+      "Module / Area": "User Visibility",
+      "What it does": "Provides visibility of user activity or employee movement where enabled by role and process design.",
+      "Business Value / Impact": "Improves task accountability and helps supervisors balance manpower.",
+      "Dependencies / Inputs": "User mapping, app usage, location permissions if applicable",
+      "Sales Talking Point": "Position carefully as operational accountability, not surveillance."
+    }
+  },
+  {
+    "feature_id": "36",
+    "feature_name": "Forklift / Crane / Mobile Equipment Visibility",
+    "row_number": 37,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 36,
+      "Feature Name": "Forklift / Crane / Mobile Equipment Visibility",
+      "Bucket": "CPL - Assets / Workforce",
+      "Feature Type": "Value Add",
+      "Module / Area": "Equipment Tracking",
+      "What it does": "Tracks internal equipment such as forklifts, cranes, yard tractors, or other mobile assets based on configured hardware/source.",
+      "Business Value / Impact": "Improves asset allocation, safety, and operational coordination.",
+      "Dependencies / Inputs": "Hardware source, equipment master, site map/geo-fence",
+      "Sales Talking Point": "Strong value-add for high-traffic yards, warehouses, and ports."
+    }
+  },
+  {
+    "feature_id": "37",
+    "feature_name": "Asset Movement History",
+    "row_number": 38,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 37,
+      "Feature Name": "Asset Movement History",
+      "Bucket": "CPL - Assets / Workforce",
+      "Feature Type": "Analytics",
+      "Module / Area": "Asset Analytics",
+      "What it does": "Stores historical asset movements, usage, and event trail for review and audit.",
+      "Business Value / Impact": "Supports productivity measurement and root-cause analysis.",
+      "Dependencies / Inputs": "Asset event data, retention policy, user access",
+      "Sales Talking Point": "Use for customers asking how to justify asset utilization and deployment decisions."
+    }
+  },
+  {
+    "feature_id": "38",
+    "feature_name": "Supervisor / Role-Based Operations View",
+    "row_number": 39,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 38,
+      "Feature Name": "Supervisor / Role-Based Operations View",
+      "Bucket": "CPL - Assets / Workforce",
+      "Feature Type": "Core",
+      "Module / Area": "Role-Based Access",
+      "What it does": "Provides different views and controls for security, plant operations, dock users, supervisors, and management.",
+      "Business Value / Impact": "Improves adoption by showing each stakeholder only relevant actions and reports.",
+      "Dependencies / Inputs": "Role master, user mapping, workflow permissions",
+      "Sales Talking Point": "Good for multi-stakeholder rollout planning."
+    }
+  },
+  {
+    "feature_id": "39",
+    "feature_name": "In-Plant / In-Port Trip Management Dashboard",
+    "row_number": 40,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 39,
+      "Feature Name": "In-Plant / In-Port Trip Management Dashboard",
+      "Bucket": "CPL - Analytics / Alerts",
+      "Feature Type": "Analytics",
+      "Module / Area": "Trip Management",
+      "What it does": "Tracks each vehicle through defined stages from entry to exit for plant or port operations.",
+      "Business Value / Impact": "Measures, analyzes, and reduces turnaround time across the complete facility flow.",
+      "Dependencies / Inputs": "Stage master, process flow, event capture points",
+      "Sales Talking Point": "This is the core visibility story for CPL and CPoL."
+    }
+  },
+  {
+    "feature_id": "40",
+    "feature_name": "Trip Schedule Dashboard",
+    "row_number": 41,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 40,
+      "Feature Name": "Trip Schedule Dashboard",
+      "Bucket": "CPL - Analytics / Alerts",
+      "Feature Type": "Analytics",
+      "Module / Area": "Trip Schedule",
+      "What it does": "Shows planned, pending, active, and completed vehicle movements by schedule or process stage.",
+      "Business Value / Impact": "Improves planning, coordination, and operational readiness.",
+      "Dependencies / Inputs": "Trip plan/schedule input, integration or manual creation",
+      "Sales Talking Point": "Use for plants that need planning visibility before vehicle arrival."
+    }
+  },
+  {
+    "feature_id": "41",
+    "feature_name": "Stage-Wise TAT Analytics",
+    "row_number": 42,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 41,
+      "Feature Name": "Stage-Wise TAT Analytics",
+      "Bucket": "CPL - Analytics / Alerts",
+      "Feature Type": "Analytics",
+      "Module / Area": "TAT Analytics",
+      "What it does": "Calculates TAT by process, stage, between-stage movement, destination, staff, or operational area.",
+      "Business Value / Impact": "Identifies bottlenecks and quantifies improvement opportunities.",
+      "Dependencies / Inputs": "Timestamp events, stage definitions, process master",
+      "Sales Talking Point": "Convert process discussion into measurable KPIs."
+    }
+  },
+  {
+    "feature_id": "42",
+    "feature_name": "Checklist & Alerts Dashboard",
+    "row_number": 43,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 42,
+      "Feature Name": "Checklist & Alerts Dashboard",
+      "Bucket": "CPL - Analytics / Alerts",
+      "Feature Type": "Analytics",
+      "Module / Area": "Alerts / Checklist",
+      "What it does": "Summarizes checklist compliance, pending checks, failed checks, alerts, and exception records.",
+      "Business Value / Impact": "Improves proactive supervision and audit readiness.",
+      "Dependencies / Inputs": "Checklist data, alert rules, user roles",
+      "Sales Talking Point": "Great for operations review meetings and daily compliance tracking."
+    }
+  },
+  {
+    "feature_id": "43",
+    "feature_name": "Exception / Violation Management",
+    "row_number": 44,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 43,
+      "Feature Name": "Exception / Violation Management",
+      "Bucket": "CPL - Analytics / Alerts",
+      "Feature Type": "Core",
+      "Module / Area": "Exception Management",
+      "What it does": "Captures operational exceptions such as document mismatch, checklist failure, wrong stage, delay, safety issue, or weight exception.",
+      "Business Value / Impact": "Creates structured closure workflow and reduces informal issue handling.",
+      "Dependencies / Inputs": "Exception rules, user assignment, closure remarks",
+      "Sales Talking Point": "Position as the digital action layer after visibility."
+    }
+  },
+  {
+    "feature_id": "44",
+    "feature_name": "Multi-Channel Notifications",
+    "row_number": 45,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 44,
+      "Feature Name": "Multi-Channel Notifications",
+      "Bucket": "CPL - Analytics / Alerts",
+      "Feature Type": "Value Add",
+      "Module / Area": "Notifications",
+      "What it does": "Sends configured alerts through channels such as in-app notification, email, SMS, WhatsApp, or escalation workflow where enabled.",
+      "Business Value / Impact": "Improves response time and keeps stakeholders informed in real time.",
+      "Dependencies / Inputs": "Alert rules, contact master, communication channel integration",
+      "Sales Talking Point": "Useful for SLA-based exception handling and supervisor escalation."
+    }
+  },
+  {
+    "feature_id": "45",
+    "feature_name": "AI / OCR-Led Unloading Verification",
+    "row_number": 46,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 45,
+      "Feature Name": "AI / OCR-Led Unloading Verification",
+      "Bucket": "CPL - Analytics / Alerts",
+      "Feature Type": "AI",
+      "Module / Area": "Unloading Verification",
+      "What it does": "Uses image or OCR-led validation to support unloading verification, evidence review, and mismatch identification where configured.",
+      "Business Value / Impact": "Improves unloading audit quality and reduces manual verification effort.",
+      "Dependencies / Inputs": "Images, OCR/AI model, reference documents, exception logic",
+      "Sales Talking Point": "Position as an advanced value-add for unloading audit and dispute reduction."
+    }
+  },
+  {
+    "feature_id": "46",
+    "feature_name": "Port Pre-Gate / CISF / Terminal Gate Capture",
+    "row_number": 47,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 46,
+      "Feature Name": "Port Pre-Gate / CISF / Terminal Gate Capture",
+      "Bucket": "CPoL - Gate / Port Flow",
+      "Feature Type": "Core",
+      "Module / Area": "Port Gate Flow",
+      "What it does": "Captures port vehicle movement across pre-gate, security/CISF gate, terminal gate, and related entry points.",
+      "Business Value / Impact": "Improves visibility across multi-gate port operations and reduces stage ambiguity.",
+      "Dependencies / Inputs": "Port gate master, user roles, vehicle/trip token",
+      "Sales Talking Point": "Use for ports with multiple physical gate handoffs."
+    }
+  },
+  {
+    "feature_id": "47",
+    "feature_name": "Port Gate-In / Gate-Out Automation",
+    "row_number": 48,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 47,
+      "Feature Name": "Port Gate-In / Gate-Out Automation",
+      "Bucket": "CPoL - Gate / Port Flow",
+      "Feature Type": "Core",
+      "Module / Area": "Port Gate Automation",
+      "What it does": "Digitizes port gate entry and exit events for internal and external vehicle movements.",
+      "Business Value / Impact": "Improves port throughput, auditability, and handoff discipline.",
+      "Dependencies / Inputs": "Gate devices/app, process master, token/trip mapping",
+      "Sales Talking Point": "Explain as CPoL equivalent of plant gate automation."
+    }
+  },
+  {
+    "feature_id": "48",
+    "feature_name": "Digital Token / DO / Form 13 Verification",
+    "row_number": 49,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 48,
+      "Feature Name": "Digital Token / DO / Form 13 Verification",
+      "Bucket": "CPoL - Gate / Port Flow",
+      "Feature Type": "Core",
+      "Module / Area": "Port Documentation",
+      "What it does": "Validates digital token, delivery order, Form 13, or configured port documents at relevant stages.",
+      "Business Value / Impact": "Reduces document errors and improves gate/stage compliance.",
+      "Dependencies / Inputs": "ERP/TOS/AEGIS/Form 13 inputs, document master, validation rules",
+      "Sales Talking Point": "Position as critical for port entry, loading, unloading, and exit control."
+    }
+  },
+  {
+    "feature_id": "49",
+    "feature_name": "Survey Gate / Terminal Gate-Out Validation",
+    "row_number": 50,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 49,
+      "Feature Name": "Survey Gate / Terminal Gate-Out Validation",
+      "Bucket": "CPoL - Gate / Port Flow",
+      "Feature Type": "Core",
+      "Module / Area": "Port Exit Validation",
+      "What it does": "Captures and validates survey gate, terminal gate-out, ITT gate, or other port exit stages as per process flow.",
+      "Business Value / Impact": "Provides complete closure visibility and reduces missed exit events.",
+      "Dependencies / Inputs": "Port stage master, exit checklist, token/trip status",
+      "Sales Talking Point": "Use for end-to-end port flow from entry to final exit."
+    }
+  },
+  {
+    "feature_id": "50",
+    "feature_name": "Internal vs External Vehicle Flow Tracking",
+    "row_number": 51,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 50,
+      "Feature Name": "Internal vs External Vehicle Flow Tracking",
+      "Bucket": "CPoL - Gate / Port Flow",
+      "Feature Type": "Analytics",
+      "Module / Area": "Port Flow Visibility",
+      "What it does": "Separates and tracks internal vehicle movements and external import/export vehicle movements within port workflows.",
+      "Business Value / Impact": "Improves operational clarity for port teams and contractors.",
+      "Dependencies / Inputs": "Vehicle category, movement type, stage configuration",
+      "Sales Talking Point": "Useful for showing that CPoL supports both internal and external port flows."
+    }
+  },
+  {
+    "feature_id": "51",
+    "feature_name": "Vessel / Barge Detail Capture",
+    "row_number": 52,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 51,
+      "Feature Name": "Vessel / Barge Detail Capture",
+      "Bucket": "CPoL - Yard / Jetty / Vessel",
+      "Feature Type": "Core",
+      "Module / Area": "Vessel / Barge",
+      "What it does": "Captures vessel and barge details for port operations such as discharge, loading, or transfer.",
+      "Business Value / Impact": "Improves traceability between cargo, vehicle, vessel, barge, and yard movement.",
+      "Dependencies / Inputs": "Vessel/barge master, berth/jetty process input",
+      "Sales Talking Point": "Use when explaining port-specific process depth beyond vehicle tracking."
+    }
+  },
+  {
+    "feature_id": "52",
+    "feature_name": "Berth / Jetty Discharge Tracking",
+    "row_number": 53,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 52,
+      "Feature Name": "Berth / Jetty Discharge Tracking",
+      "Bucket": "CPoL - Yard / Jetty / Vessel",
+      "Feature Type": "Core",
+      "Module / Area": "Jetty / Berth Operations",
+      "What it does": "Tracks discharge activity at berth or jetty and links vehicle/cargo movement to discharge point.",
+      "Business Value / Impact": "Improves transfer visibility and TAT measurement from vessel to yard/plot.",
+      "Dependencies / Inputs": "Berth/jetty master, discharge event data, images/checklist where required",
+      "Sales Talking Point": "Show as the port equivalent of loading/unloading stage visibility."
+    }
+  },
+  {
+    "feature_id": "53",
+    "feature_name": "Stock Yard / Plot Loading-Unloading Tracking",
+    "row_number": 54,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 53,
+      "Feature Name": "Stock Yard / Plot Loading-Unloading Tracking",
+      "Bucket": "CPoL - Yard / Jetty / Vessel",
+      "Feature Type": "Core",
+      "Module / Area": "Stock Yard / Plot",
+      "What it does": "Tracks loading and unloading at stock yard, plot, heap area, or designated cargo area.",
+      "Business Value / Impact": "Improves yard control and helps reduce untracked cargo movement.",
+      "Dependencies / Inputs": "Yard/plot master, vehicle/cargo mapping, stage capture",
+      "Sales Talking Point": "Use for ports where material moves between berth, yard, weighbridge, and exit."
+    }
+  },
+  {
+    "feature_id": "54",
+    "feature_name": "Container / Cargo Stack-Level Yard Visibility",
+    "row_number": 55,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 54,
+      "Feature Name": "Container / Cargo Stack-Level Yard Visibility",
+      "Bucket": "CPoL - Yard / Jetty / Vessel",
+      "Feature Type": "Value Add",
+      "Module / Area": "Port Yard Visibility",
+      "What it does": "Supports visibility of container or cargo location in yard, including stack/slot context where configured.",
+      "Business Value / Impact": "Reduces wrong moves, wasted lifts, and dwell-time risk.",
+      "Dependencies / Inputs": "Yard map, stack/slot master, crane/yard updates or integration feed",
+      "Sales Talking Point": "Strong value-add for container yards and high-density port operations."
+    }
+  },
+  {
+    "feature_id": "55",
+    "feature_name": "Mid-Sea Transfer Tracking",
+    "row_number": 56,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 55,
+      "Feature Name": "Mid-Sea Transfer Tracking",
+      "Bucket": "CPoL - Yard / Jetty / Vessel",
+      "Feature Type": "Value Add",
+      "Module / Area": "Mid-Sea Transfer",
+      "What it does": "Captures mid-sea or barge transfer milestones where the port process requires vessel-to-barge or barge-to-yard visibility.",
+      "Business Value / Impact": "Improves end-to-end visibility across complex port transfer legs.",
+      "Dependencies / Inputs": "Barge/vessel details, transfer event capture, process configuration",
+      "Sales Talking Point": "Use for port customers with barge or multi-leg marine movement."
+    }
+  },
+  {
+    "feature_id": "56",
+    "feature_name": "Rake / Bridge Movement Tracking",
+    "row_number": 57,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 56,
+      "Feature Name": "Rake / Bridge Movement Tracking",
+      "Bucket": "CPoL - Yard / Jetty / Vessel",
+      "Feature Type": "Value Add",
+      "Module / Area": "Rake / Bridge Flow",
+      "What it does": "Tracks rake/bridge-related movement stages and internal transfer points as part of port process flow.",
+      "Business Value / Impact": "Improves visibility of rail/bridge-linked internal cargo movement.",
+      "Dependencies / Inputs": "Rake/bridge stage master, trip/cargo mapping, event capture",
+      "Sales Talking Point": "Position as configurable port process coverage."
+    }
+  },
+  {
+    "feature_id": "57",
+    "feature_name": "Port Tare / Gross / Net Weighment",
+    "row_number": 58,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 57,
+      "Feature Name": "Port Tare / Gross / Net Weighment",
+      "Bucket": "CPoL - Weighbridge / Docs",
+      "Feature Type": "Core",
+      "Module / Area": "Port Weighbridge",
+      "What it does": "Captures tare, gross, and net weight during port loading/unloading or external vehicle movement.",
+      "Business Value / Impact": "Improves cargo reconciliation and reduces manual weighment dependency.",
+      "Dependencies / Inputs": "Weighbridge integration, token/trip/cargo mapping",
+      "Sales Talking Point": "Use for ports where weighbridge is a mandatory control stage."
+    }
+  },
+  {
+    "feature_id": "58",
+    "feature_name": "Weighbridge Slip / DC Image Upload",
+    "row_number": 59,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 58,
+      "Feature Name": "Weighbridge Slip / DC Image Upload",
+      "Bucket": "CPoL - Weighbridge / Docs",
+      "Feature Type": "Core",
+      "Module / Area": "Port Documentation",
+      "What it does": "Uploads or links weighbridge slip, DC, or other port documents with stage event and image evidence.",
+      "Business Value / Impact": "Improves audit trail and simplifies document retrieval.",
+      "Dependencies / Inputs": "Document upload configuration, user role, stage rules",
+      "Sales Talking Point": "Good demo for port document-heavy operations."
+    }
+  },
+  {
+    "feature_id": "59",
+    "feature_name": "Port Dynamic Checklist & Stage TAT",
+    "row_number": 60,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 59,
+      "Feature Name": "Port Dynamic Checklist & Stage TAT",
+      "Bucket": "CPoL - Weighbridge / Docs",
+      "Feature Type": "Analytics",
+      "Module / Area": "Port Checklist / TAT",
+      "What it does": "Uses configurable checklists and timestamps at port stages such as gate, weighbridge, berth, yard, and exit.",
+      "Business Value / Impact": "Standardizes port SOP and reveals stage-wise delays.",
+      "Dependencies / Inputs": "Port process master, checklist fields, timestamp events",
+      "Sales Talking Point": "Position as configurable CPoL process digitization."
+    }
+  },
+  {
+    "feature_id": "60",
+    "feature_name": "Unified Data Lake & Integration Layer",
+    "row_number": 61,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 60,
+      "Feature Name": "Unified Data Lake & Integration Layer",
+      "Bucket": "Platform / Integrations",
+      "Feature Type": "Core",
+      "Module / Area": "Integrations",
+      "What it does": "Integrates ERP, TMS, WMS, TOS, AEGIS, Form 13, weighbridge, hardware, and third-party APIs into a unified data layer.",
+      "Business Value / Impact": "Creates a single source of digital truth across plant and port operations.",
+      "Dependencies / Inputs": "API/file/database access, master data, integration scope, security approvals",
+      "Sales Talking Point": "Use when discussing enterprise rollout and scalable architecture."
+    }
+  },
+  {
+    "feature_id": "61",
+    "feature_name": "Deployment Models - Digital / Lite / Enterprise",
+    "row_number": 62,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 61,
+      "Feature Name": "Deployment Models - Digital / Lite / Enterprise",
+      "Bucket": "Platform / Integrations",
+      "Feature Type": "Value Add",
+      "Module / Area": "Deployment Model",
+      "What it does": "Supports software-only deployment, minimal hardware automation, or full enterprise automation with hardware supply and installation.",
+      "Business Value / Impact": "Lets customers choose rollout based on digital maturity, CAPEX appetite, and site complexity.",
+      "Dependencies / Inputs": "Process scope, hardware scope, integration needs, rollout plan",
+      "Sales Talking Point": "Helps commercial discussion: start digital, scale to targeted hardware, then enterprise automation."
+    }
+  },
+  {
+    "feature_id": "1",
+    "feature_name": "XSWIFT Dashboard",
+    "row_number": 63,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 1,
+      "Feature Name": "XSWIFT Dashboard",
+      "Bucket": "Core Platform",
+      "Feature Type": "Core",
+      "Module / Area": "Visibility Dashboard",
+      "What it does": "Central dashboard for trip status, vehicle status, live tracking, route tracker, and operational filters.",
+      "Business Value / Impact": "Single-window visibility, faster decisions, track health monitoring.",
+      "Dependencies / Inputs": "Trip/GPS/SIM/toll data feed",
+      "Sales Talking Point": "Start demos here: show all active fleet status, live tracking, filters, and drill-downs."
+    }
+  },
+  {
+    "feature_id": "2",
+    "feature_name": "Toll / Dhaba Visibility",
+    "row_number": 64,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 2,
+      "Feature Name": "Toll / Dhaba Visibility",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Visibility Dashboard",
+      "What it does": "Shows toll crossings, dhaba/POI halts, and in-transit stoppage context on the dashboard.",
+      "Business Value / Impact": "Improves route intelligence, halt analysis, and leakage/pilferage monitoring.",
+      "Dependencies / Inputs": "Toll/FasTag feed, POI enrichment",
+      "Sales Talking Point": "Position as a practical control-tower input: not just location, but reason/context of movement."
+    }
+  },
+  {
+    "feature_id": "3",
+    "feature_name": "Multi Mode / Gate Entry Page",
+    "row_number": 65,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 3,
+      "Feature Name": "Multi Mode / Gate Entry Page",
+      "Bucket": "Core Platform",
+      "Feature Type": "Core",
+      "Module / Area": "Gate Entry / Trip Start",
+      "What it does": "Gate entry / stamping card page to capture vehicle entry and support multiple trip/tracking modes.",
+      "Business Value / Impact": "Standardizes entry process and enables stage-wise tracking from gate-in onwards.",
+      "Dependencies / Inputs": "Vehicle/trip master, gate process data",
+      "Sales Talking Point": "Useful for plant/yard demos where trip lifecycle starts at gate entry."
+    }
+  },
+  {
+    "feature_id": "4",
+    "feature_name": "AI Repair Distance / AI True Lead Distance",
+    "row_number": 66,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 4,
+      "Feature Name": "AI Repair Distance / AI True Lead Distance",
+      "Bucket": "AI",
+      "Feature Type": "AI",
+      "Module / Area": "Trip Analytics / Master Trip Report",
+      "What it does": "AI corrects missed pings, GPS jumps, and distance anomalies to derive reliable lead distance.",
+      "Business Value / Impact": "Freight cost accuracy, customer SLA compliance, and reduction in distance disputes.",
+      "Dependencies / Inputs": "Trip location feed, origin/destination, AI model",
+      "Sales Talking Point": "Explain this as 'true distance' correction, especially where GPS data jumps or misses occur."
+    }
+  },
+  {
+    "feature_id": "5",
+    "feature_name": "ULIP Toll / Toll Stamping",
+    "row_number": 67,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 5,
+      "Feature Name": "ULIP Toll / Toll Stamping",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Value Add",
+      "Module / Area": "FasTag / ULIP",
+      "What it does": "Integrates toll transaction visibility through ULIP-listed toll data and uses it as a tracking/stamping layer.",
+      "Business Value / Impact": "Clear visibility, fallback tracking, freight cost management, and compliance support.",
+      "Dependencies / Inputs": "ULIP/FasTag integration access",
+      "Sales Talking Point": "Show as a multi-tracking fallback after GPS/SIM and as cost-control evidence."
+    }
+  },
+  {
+    "feature_id": "6",
+    "feature_name": "Route Deviation",
+    "row_number": 68,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 6,
+      "Feature Name": "Route Deviation",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Trip Master Report",
+      "What it does": "Detects and displays deviation from defined route or route corridor.",
+      "Business Value / Impact": "Improves route compliance, security, cost control, and pilferage prevention.",
+      "Dependencies / Inputs": "Route master / probable route / corridor logic",
+      "Sales Talking Point": "Use for exception-led demos: route breached, alert generated, ticket/escalation triggered."
+    }
+  },
+  {
+    "feature_id": "7",
+    "feature_name": "SIM + GPS Tracking",
+    "row_number": 69,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 7,
+      "Feature Name": "SIM + GPS Tracking",
+      "Bucket": "Tracking Modes",
+      "Feature Type": "Core",
+      "Module / Area": "Multi Tracking",
+      "What it does": "Combines GPS and SIM-based tracking to improve trip visibility where one tracking source is weak.",
+      "Business Value / Impact": "Higher tracking uptime, continuity, and fewer blind spots.",
+      "Dependencies / Inputs": "GPS feed + driver SIM consent/data",
+      "Sales Talking Point": "Highlight as a practical fallback for market fleet where GPS quality varies."
+    }
+  },
+  {
+    "feature_id": "8",
+    "feature_name": "SIM Tracking / Consent Dashboard",
+    "row_number": 70,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 8,
+      "Feature Name": "SIM Tracking / Consent Dashboard",
+      "Bucket": "Tracking Modes",
+      "Feature Type": "Core",
+      "Module / Area": "SIM Tracking",
+      "What it does": "Consent-based SIM tracking dashboard for trips where GPS may be unavailable or unreliable.",
+      "Business Value / Impact": "Clear visibility without full GPS dependency, especially for market fleet.",
+      "Dependencies / Inputs": "SIM consent and telecom/location source",
+      "Sales Talking Point": "Position as BYOD-friendly tracking option."
+    }
+  },
+  {
+    "feature_id": "9",
+    "feature_name": "Probable Route",
+    "row_number": 71,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 9,
+      "Feature Name": "Probable Route",
+      "Bucket": "AI",
+      "Feature Type": "AI",
+      "Module / Area": "Load Intelligence / Route Intelligence",
+      "What it does": "Suggests probable commercial vehicle routes using historical movement, vehicle type, route behavior, and network intelligence.",
+      "Business Value / Impact": "Route optimization, better planning, improved ETA and deviation benchmarking.",
+      "Dependencies / Inputs": "Historical GPS/SIM/trip data",
+      "Sales Talking Point": "Use when customer does not have route masters; system can still infer likely route."
+    }
+  },
+  {
+    "feature_id": "10",
+    "feature_name": "ePOD",
+    "row_number": 72,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 10,
+      "Feature Name": "ePOD",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Delivery / POD",
+      "What it does": "Electronic proof of delivery to digitize delivery confirmation and POD validation.",
+      "Business Value / Impact": "Paperless delivery proof, faster billing cycle, lower disputes.",
+      "Dependencies / Inputs": "Driver/customer app workflow, OTP/approval inputs",
+      "Sales Talking Point": "Tie to freight settlement and delivery closure cycle."
+    }
+  },
+  {
+    "feature_id": "11",
+    "feature_name": "Control Tower User",
+    "row_number": 73,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 11,
+      "Feature Name": "Control Tower User",
+      "Bucket": "Managed Control Tower",
+      "Feature Type": "Value Add",
+      "Module / Area": "Control Tower",
+      "What it does": "User-facing control tower page for monitoring exceptions, follow-ups, and operational interventions.",
+      "Business Value / Impact": "Centralized exception handling and faster resolution.",
+      "Dependencies / Inputs": "Alert rules, users, escalation matrix",
+      "Sales Talking Point": "Show how business users and MCT team can work on the same exception window."
+    }
+  },
+  {
+    "feature_id": "12",
+    "feature_name": "Route Dashboard",
+    "row_number": 74,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 12,
+      "Feature Name": "Route Dashboard",
+      "Bucket": "Core Platform",
+      "Feature Type": "Core",
+      "Module / Area": "Route Management",
+      "What it does": "Dashboard for route-level performance, route health, and route analytics.",
+      "Business Value / Impact": "Better lane-level monitoring and route performance analysis.",
+      "Dependencies / Inputs": "Route/lane master, trip data",
+      "Sales Talking Point": "Use to shift demo from individual trip to lane/network view."
+    }
+  },
+  {
+    "feature_id": "13",
+    "feature_name": "Document Dashboard",
+    "row_number": 75,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 13,
+      "Feature Name": "Document Dashboard",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Core",
+      "Module / Area": "Documentation",
+      "What it does": "Dashboard to monitor vehicle/driver documents and related compliance details.",
+      "Business Value / Impact": "Improves compliance, reduces delays at gate/dispatch.",
+      "Dependencies / Inputs": "Vehicle/driver master, document data, VAHAN/Sarathi where applicable",
+      "Sales Talking Point": "Useful for gate-entry, transporter governance, and compliance demos."
+    }
+  },
+  {
+    "feature_id": "14",
+    "feature_name": "Challan Dashboard",
+    "row_number": 76,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 14,
+      "Feature Name": "Challan Dashboard",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Core",
+      "Module / Area": "Challan Management",
+      "What it does": "Dashboard for pending challans/eChallan visibility and follow-up.",
+      "Business Value / Impact": "Faster challan resolution, lower operational delay and compliance exposure.",
+      "Dependencies / Inputs": "Challan/eChallan source integration",
+      "Sales Talking Point": "Position as part of vehicle compliance and transporter governance."
+    }
+  },
+  {
+    "feature_id": "15",
+    "feature_name": "Inward + eSealing",
+    "row_number": 77,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 15,
+      "Feature Name": "Inward + eSealing",
+      "Bucket": "Inbound / E-Sealing",
+      "Feature Type": "Value Add",
+      "Module / Area": "Inbound Movement",
+      "What it does": "Supports inward trip tracking with electronic sealing, seal image checks, mismatch handling, and incident reporting.",
+      "Business Value / Impact": "Pilferage prevention, shipment integrity, auditability.",
+      "Dependencies / Inputs": "E-seal devices, seal image capture, inbound trip process",
+      "Sales Talking Point": "Good for inbound/port-to-plant demo and high-risk material movements."
+    }
+  },
+  {
+    "feature_id": "16",
+    "feature_name": "Mines ADAS and DMS",
+    "row_number": 78,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 16,
+      "Feature Name": "Mines ADAS and DMS",
+      "Bucket": "ADAS/DMS & Safety",
+      "Feature Type": "AI",
+      "Module / Area": "Video Telematics",
+      "What it does": "ADAS/DMS setup for mines/fleet safety with driver and road-facing alerts.",
+      "Business Value / Impact": "Accident prevention, driver safety, safety governance.",
+      "Dependencies / Inputs": "Dashcam/ADAS/DMS device integration",
+      "Sales Talking Point": "Use for safety-led discussions: fatigue, distraction, collision warning, lane departure."
+    }
+  },
+  {
+    "feature_id": "17",
+    "feature_name": "Video Alarms Report",
+    "row_number": 79,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 17,
+      "Feature Name": "Video Alarms Report",
+      "Bucket": "ADAS/DMS & Safety",
+      "Feature Type": "AI",
+      "Module / Area": "Video Telematics",
+      "What it does": "Report for video-based alarms and alerts generated from dashcam/ADAS/DMS events.",
+      "Business Value / Impact": "Safety visibility, root cause analysis, coaching evidence.",
+      "Dependencies / Inputs": "Video telematics devices and event feed",
+      "Sales Talking Point": "Show as proof of AI safety events and review workflow."
+    }
+  },
+  {
+    "feature_id": "18",
+    "feature_name": "XSights / XSight 2.0",
+    "row_number": 80,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 18,
+      "Feature Name": "XSights / XSight 2.0",
+      "Bucket": "AI",
+      "Feature Type": "Analytics",
+      "Module / Area": "Analytics Dashboard",
+      "What it does": "Advanced analytics dashboard for trip, safety, performance, exception trends, and drill-down insights.",
+      "Business Value / Impact": "Better decision-making, performance monitoring, network visibility.",
+      "Dependencies / Inputs": "Trip/safety/alert data warehouse",
+      "Sales Talking Point": "Use as executive dashboard layer above day-to-day operations."
+    }
+  },
+  {
+    "feature_id": "19",
+    "feature_name": "Trolley Module",
+    "row_number": 81,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 19,
+      "Feature Name": "Trolley Module",
+      "Bucket": "Other",
+      "Feature Type": "Core",
+      "Module / Area": "Asset / Trolley",
+      "What it does": "Module for trolley/asset tracking use cases.",
+      "Business Value / Impact": "Asset visibility and operational control for trolley-based movements.",
+      "Dependencies / Inputs": "Asset master and tracking process",
+      "Sales Talking Point": "Use only where customer has trolley or non-vehicle asset tracking requirement."
+    }
+  },
+  {
+    "feature_id": "20",
+    "feature_name": "Transshipment - Load Dashboard",
+    "row_number": 82,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 20,
+      "Feature Name": "Transshipment - Load Dashboard",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Transshipment",
+      "What it does": "Supports mid-trip load transfer or truck replacement while maintaining trip/invoice continuity.",
+      "Business Value / Impact": "Faster deliveries, risk mitigation, fewer invoice/trip gaps.",
+      "Dependencies / Inputs": "Transshipment event, source/destination trip linkage",
+      "Sales Talking Point": "Explain for breakdowns, vehicle changes, or load transfer scenarios."
+    }
+  },
+  {
+    "feature_id": "21",
+    "feature_name": "Dynamic Route",
+    "row_number": 83,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 21,
+      "Feature Name": "Dynamic Route",
+      "Bucket": "AI",
+      "Feature Type": "AI",
+      "Module / Area": "Route Intelligence",
+      "What it does": "Tracks planned/unplanned trips using smart stoppage sequence analysis even when predefined route is not available.",
+      "Business Value / Impact": "Multi-point delivery visibility, optimized route understanding, delay/detention insight.",
+      "Dependencies / Inputs": "Historical movement and stoppage sequence data",
+      "Sales Talking Point": "Strong feature when route masters are missing or operations are flexible."
+    }
+  },
+  {
+    "feature_id": "22",
+    "feature_name": "Driver Score Card",
+    "row_number": 84,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 22,
+      "Feature Name": "Driver Score Card",
+      "Bucket": "ADAS/DMS & Safety",
+      "Feature Type": "Analytics",
+      "Module / Area": "Driver Performance",
+      "What it does": "Driver performance dashboard/scorecard based on driving behavior, violations, and operational metrics.",
+      "Business Value / Impact": "Driver coaching, transporter governance, improved safety.",
+      "Dependencies / Inputs": "Driver mapping, trip and safety events",
+      "Sales Talking Point": "Use with ADAS/DMS, speed, harsh braking, and compliance reports."
+    }
+  },
+  {
+    "feature_id": "23",
+    "feature_name": "Driver / Asset Verification",
+    "row_number": 85,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 23,
+      "Feature Name": "Driver / Asset Verification",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Core",
+      "Module / Area": "Master Trip Report / Verification",
+      "What it does": "Driver and asset/vehicle verification in trip context.",
+      "Business Value / Impact": "Improves gate/dispatch compliance and reduces wrong vehicle/driver risk.",
+      "Dependencies / Inputs": "Driver/vehicle master, VAHAN/Sarathi where applicable",
+      "Sales Talking Point": "Use when customer asks for pre-dispatch or gate compliance."
+    }
+  },
+  {
+    "feature_id": "24",
+    "feature_name": "Dispatch Cluster View (XSight)",
+    "row_number": 86,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 24,
+      "Feature Name": "Dispatch Cluster View (XSight)",
+      "Bucket": "AI",
+      "Feature Type": "Analytics",
+      "Module / Area": "XSight / Dispatch Analytics",
+      "What it does": "Cluster view for dispatch performance and route/destination patterns.",
+      "Business Value / Impact": "Management visibility, dispatch optimization, cluster-level analysis.",
+      "Dependencies / Inputs": "Trip and dispatch cluster data",
+      "Sales Talking Point": "Useful for cement/distribution network demos."
+    }
+  },
+  {
+    "feature_id": "25",
+    "feature_name": "Probable Unloading",
+    "row_number": 87,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 25,
+      "Feature Name": "Probable Unloading",
+      "Bucket": "AI",
+      "Feature Type": "AI",
+      "Module / Area": "Trip Analytics / Unloading Identification",
+      "What it does": "AI identifies likely unloading points from actual stoppage and delivery behavior.",
+      "Business Value / Impact": "Accurate unloading validation, leakage detection, and new unloading point identification.",
+      "Dependencies / Inputs": "Trip stoppage data, geofence/POI logic, unloading rules",
+      "Sales Talking Point": "Position as AI unloading identification for invoice/delivery compliance."
+    }
+  },
+  {
+    "feature_id": "26",
+    "feature_name": "MCT Flow / Workflow Designer",
+    "row_number": 88,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 26,
+      "Feature Name": "MCT Flow / Workflow Designer",
+      "Bucket": "Managed Control Tower",
+      "Feature Type": "Value Add",
+      "Module / Area": "Workflow Designer",
+      "What it does": "Configures MCT workflows, alert routing, ticketing, and action steps.",
+      "Business Value / Impact": "SLA-based governance, auditable exception handling, faster escalations.",
+      "Dependencies / Inputs": "Alert catalogue, users, SLA matrix",
+      "Sales Talking Point": "Show as back-end configurability behind MCT execution."
+    }
+  },
+  {
+    "feature_id": "27",
+    "feature_name": "3 Channel / 4 Channel Video Telematics",
+    "row_number": 89,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 27,
+      "Feature Name": "3 Channel / 4 Channel Video Telematics",
+      "Bucket": "ADAS/DMS & Safety",
+      "Feature Type": "AI",
+      "Module / Area": "Dashcam / Video Telematics",
+      "What it does": "Multi-camera video telematics view for 3-channel and 4-channel setups.",
+      "Business Value / Impact": "360-degree safety visibility, incident evidence, driver monitoring.",
+      "Dependencies / Inputs": "Multi-channel dashcam hardware",
+      "Sales Talking Point": "Use for camera configuration and safety inspection discussions."
+    }
+  },
+  {
+    "feature_id": "28",
+    "feature_name": "Forklift Installation / DMS",
+    "row_number": 90,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 28,
+      "Feature Name": "Forklift Installation / DMS",
+      "Bucket": "ADAS/DMS & Safety",
+      "Feature Type": "Other",
+      "Module / Area": "In-Plant Asset Safety",
+      "What it does": "Forklift-specific installation/use case for visibility and safety monitoring.",
+      "Business Value / Impact": "Improves internal equipment safety and asset monitoring.",
+      "Dependencies / Inputs": "Forklift device/hardware installation",
+      "Sales Talking Point": "Use where customer wants in-plant machine/asset safety, not only highway fleet."
+    }
+  },
+  {
+    "feature_id": "29",
+    "feature_name": "OCR-led Unloading Verification",
+    "row_number": 91,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 29,
+      "Feature Name": "OCR-led Unloading Verification",
+      "Bucket": "AI",
+      "Feature Type": "AI",
+      "Module / Area": "Unloading / Image Verification",
+      "What it does": "Uses OCR/image intelligence to validate unloading evidence and capture key delivery/unloading data.",
+      "Business Value / Impact": "Improves unloading accuracy, reduces manual checking, strengthens audit trail.",
+      "Dependencies / Inputs": "Unloading photos/documents; OCR model; geotag/time stamp",
+      "Sales Talking Point": "Pitch as image-first unloading validation for high-dispute operations."
+    }
+  },
+  {
+    "feature_id": "30",
+    "feature_name": "Vibration-led Unloading Verification",
+    "row_number": 92,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 30,
+      "Feature Name": "Vibration-led Unloading Verification",
+      "Bucket": "AI",
+      "Feature Type": "AI",
+      "Module / Area": "Unloading / VibrationVerification",
+      "What it does": "Uses GPS G-Sensor Vibrations intelligence to validate unloading evidence and capture key delivery/unloading data.",
+      "Business Value / Impact": "Improves unloading accuracy, reduces manual checking, strengthens audit trail.",
+      "Dependencies / Inputs": "Unloading vibration model; geotag/time stamp",
+      "Sales Talking Point": "Pitch as Vibration unloading validation for high-dispute operations."
+    }
+  },
+  {
+    "feature_id": "31",
+    "feature_name": "Deviation Ticketing",
+    "row_number": 93,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 31,
+      "Feature Name": "Deviation Ticketing",
+      "Bucket": "Other",
+      "Feature Type": "Value Add",
+      "Module / Area": "Alerts / Ticketing",
+      "What it does": "Creates ticket/work item from route deviation or other critical alerts for follow-up and closure.",
+      "Business Value / Impact": "Auditable exception handling, faster action, SLA tracking.",
+      "Dependencies / Inputs": "Deviation alert logic, ticket workflow, MCT users",
+      "Sales Talking Point": "Connect route deviation detection to actual action, not just a red flag."
+    }
+  },
+  {
+    "feature_id": "32",
+    "feature_name": "Deviation Cluster Dashboard",
+    "row_number": 94,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 32,
+      "Feature Name": "Deviation Cluster Dashboard",
+      "Bucket": "AI",
+      "Feature Type": "Analytics",
+      "Module / Area": "Route Analytics",
+      "What it does": "Aggregates route deviations by lane, delivery location, KM impact, and frequency.",
+      "Business Value / Impact": "Route optimization, freight debit support, leakage identification.",
+      "Dependencies / Inputs": "Trip deviation data across lanes",
+      "Sales Talking Point": "Use for management reviews where multiple trips deviate in the same pattern."
+    }
+  },
+  {
+    "feature_id": "33",
+    "feature_name": "AI Reports / AI Analytics",
+    "row_number": 95,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 33,
+      "Feature Name": "AI Reports / AI Analytics",
+      "Bucket": "AI",
+      "Feature Type": "Analytics",
+      "Module / Area": "Analytics & Reports",
+      "What it does": "AI-led analytical reports across trip risk, lead distance, halt enrichment, unloading, and safety behavior.",
+      "Business Value / Impact": "Better decisions, predictive/preventive logistics, performance governance.",
+      "Dependencies / Inputs": "Data lake / trip, alert, safety feeds",
+      "Sales Talking Point": "Umbrella row for AI reporting story; pair with XSight dashboard."
+    }
+  },
+  {
+    "feature_id": "34",
+    "feature_name": "API BOT Method",
+    "row_number": 96,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 34,
+      "Feature Name": "API BOT Method",
+      "Bucket": "Tracking Modes",
+      "Feature Type": "Value Add",
+      "Module / Area": "Market Fleet Integration",
+      "What it does": "Tracks market fleet through API integrations and proprietary BOT method using GPS provider login credentials.",
+      "Business Value / Impact": "Enhanced visibility and improved compliance for non-owned/market fleet.",
+      "Dependencies / Inputs": "GPS provider credentials/API access",
+      "Sales Talking Point": "Strong differentiator: can track fleets where API access is unavailable or fragmented."
+    }
+  },
+  {
+    "feature_id": "35",
+    "feature_name": "AI True Halts / POI Enrichment",
+    "row_number": 97,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 35,
+      "Feature Name": "AI True Halts / POI Enrichment",
+      "Bucket": "AI",
+      "Feature Type": "AI",
+      "Module / Area": "POI / Halt Analytics",
+      "What it does": "AI identifies halt type/name such as dhaba, petrol pump, parking, unauthorized halt, etc.",
+      "Business Value / Impact": "Pilferage prevention, leakage arrest, better stoppage evidence.",
+      "Dependencies / Inputs": "GPS/SIM points, POI master, AI enrichment",
+      "Sales Talking Point": "Converts raw stoppage into actionable business context."
+    }
+  },
+  {
+    "feature_id": "36",
+    "feature_name": "Multi Tracking Auto Fail Safe",
+    "row_number": 98,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 36,
+      "Feature Name": "Multi Tracking Auto Fail Safe",
+      "Bucket": "Tracking Modes",
+      "Feature Type": "Value Add",
+      "Module / Area": "Multi Tracking",
+      "What it does": "Automatically switches tracking mode from GPS to driver SIM to conductor SIM/FasTag where needed.",
+      "Business Value / Impact": "Near-continuous visibility, delivery compliance, tracking health resilience.",
+      "Dependencies / Inputs": "GPS, SIM, FasTag integrations and consent",
+      "Sales Talking Point": "Explain as XSWIFT's reliability layer for real-world tracking failures."
+    }
+  },
+  {
+    "feature_id": "37",
+    "feature_name": "GenAI Control Tower with WhatsApp & IVR",
+    "row_number": 99,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 37,
+      "Feature Name": "GenAI Control Tower with WhatsApp & IVR",
+      "Bucket": "Managed Control Tower",
+      "Feature Type": "AI",
+      "Module / Area": "MCT / Communication",
+      "What it does": "Uses GenAI-enabled communication across IVR, WhatsApp, e-mail, SMS, follow-ups and exception management.",
+      "Business Value / Impact": "Streamlined operations, manpower optimization, faster intervention.",
+      "Dependencies / Inputs": "MCT workflow, IVR/WhatsApp integration, alert rules",
+      "Sales Talking Point": "Show how alerts become conversations and actions through automated follow-up."
+    }
+  },
+  {
+    "feature_id": "38",
+    "feature_name": "VAHAN / Sarathi Verification",
+    "row_number": 100,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 38,
+      "Feature Name": "VAHAN / Sarathi Verification",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Value Add",
+      "Module / Area": "Government Portal Integration",
+      "What it does": "Verifies driver DL, vehicle fitness/RC, and related compliance details using VAHAN/Sarathi interfaces.",
+      "Business Value / Impact": "Driver/vehicle verification, theft/blacklisting mitigation, regulatory compliance.",
+      "Dependencies / Inputs": "Govt portal integration access",
+      "Sales Talking Point": "Useful for plant entry, dispatch gate checks, and transporter compliance."
+    }
+  },
+  {
+    "feature_id": "39",
+    "feature_name": "Multi-Godown / Multi-Unloading",
+    "row_number": 101,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 39,
+      "Feature Name": "Multi-Godown / Multi-Unloading",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Delivery / Unloading",
+      "What it does": "Supports multiple unloading points under one destination cluster to avoid penalty/discrepancy.",
+      "Business Value / Impact": "Penalty reduction, operational flexibility, accurate delivery mapping.",
+      "Dependencies / Inputs": "Destination cluster and unloading point configuration",
+      "Sales Talking Point": "Pitch for networks where a single customer/destination has multiple delivery locations."
+    }
+  },
+  {
+    "feature_id": "40",
+    "feature_name": "Stock on Wheels (SOW) Movement",
+    "row_number": 102,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 40,
+      "Feature Name": "Stock on Wheels (SOW) Movement",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Cement / Invoice Flow",
+      "What it does": "Merges virtual DO/invoice movements into a single trip when final invoice is generated later.",
+      "Business Value / Impact": "Streamlined operations, cost optimization, accurate traveled distance.",
+      "Dependencies / Inputs": "DO/invoice data and SOW process mapping",
+      "Sales Talking Point": "Important for cement customers with virtual invoice/order timing gaps."
+    }
+  },
+  {
+    "feature_id": "41",
+    "feature_name": "Backhaul Movement",
+    "row_number": 103,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 41,
+      "Feature Name": "Backhaul Movement",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Fleet Utilization",
+      "What it does": "Tracks outbound FG delivery and inbound/raw material return leg to reduce empty runs.",
+      "Business Value / Impact": "Fleet coordination, capacity utilization, optimized logistics planning.",
+      "Dependencies / Inputs": "Outbound and inbound trip linkage",
+      "Sales Talking Point": "Talk about eliminating empty runs and improving return leg visibility."
+    }
+  },
+  {
+    "feature_id": "42",
+    "feature_name": "Return Movement",
+    "row_number": 104,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 42,
+      "Feature Name": "Return Movement",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Return Trip Visibility",
+      "What it does": "Report for return journeys with third-party consignments or new return loads.",
+      "Business Value / Impact": "Fleet optimization, hidden capacity visibility, route visibility.",
+      "Dependencies / Inputs": "Return load/trip capture",
+      "Sales Talking Point": "Useful for transporter/fleet utilization discussions."
+    }
+  },
+  {
+    "feature_id": "43",
+    "feature_name": "Reverse Logistics / JRM",
+    "row_number": 105,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 43,
+      "Feature Name": "Reverse Logistics / JRM",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Reverse Logistics",
+      "What it does": "IoT device reverse logistics and nearby destination vehicle visibility with auto-ticketing and inventory status.",
+      "Business Value / Impact": "Enhanced supply chain coordination, device recovery, inventory control.",
+      "Dependencies / Inputs": "Device inventory, site-wise status, ticket workflow",
+      "Sales Talking Point": "Use for customers with high device rotation, return logistics, or JRM scenarios."
+    }
+  },
+  {
+    "feature_id": "44",
+    "feature_name": "HOS & Safety Reports",
+    "row_number": 106,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 44,
+      "Feature Name": "HOS & Safety Reports",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Analytics",
+      "Module / Area": "Safety Reports",
+      "What it does": "Hours-of-service and safety reports across driver and trip operations.",
+      "Business Value / Impact": "Compliance, safety governance, reduced fatigue risk.",
+      "Dependencies / Inputs": "Trip duration, driver mapping, safety rules",
+      "Sales Talking Point": "Supports safety/compliance stakeholder conversations."
+    }
+  },
+  {
+    "feature_id": "45",
+    "feature_name": "Driver Behaviour Reports",
+    "row_number": 107,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 45,
+      "Feature Name": "Driver Behaviour Reports",
+      "Bucket": "ADAS/DMS & Safety",
+      "Feature Type": "Analytics",
+      "Module / Area": "Safety / Driver Analytics",
+      "What it does": "Reports for driver behavior based on speed, harsh driving, fatigue/distraction, and safety violations.",
+      "Business Value / Impact": "Improved driver behavior, targeted coaching, safer operations.",
+      "Dependencies / Inputs": "Safety events, driver mapping, ADAS/DMS inputs",
+      "Sales Talking Point": "Pair with Driver Score Card for governance story."
+    }
+  },
+  {
+    "feature_id": "46",
+    "feature_name": "Speed Violation / Overspeed Report",
+    "row_number": 108,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 46,
+      "Feature Name": "Speed Violation / Overspeed Report",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Analytics",
+      "Module / Area": "Safety Alerts",
+      "What it does": "Captures and reports overspeeding incidents and violations.",
+      "Business Value / Impact": "Risk reduction, compliance, proactive safety action.",
+      "Dependencies / Inputs": "Speed thresholds and tracking feed",
+      "Sales Talking Point": "Easy safety demo: simple rule, clear violation, auditable report."
+    }
+  },
+  {
+    "feature_id": "47",
+    "feature_name": "Night Drive Report",
+    "row_number": 109,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 47,
+      "Feature Name": "Night Drive Report",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Analytics",
+      "Module / Area": "Safety Alerts",
+      "What it does": "Report for night driving violations and risk events.",
+      "Business Value / Impact": "Reduces fatigue-related risk and supports policy enforcement.",
+      "Dependencies / Inputs": "Night-drive policy rules, trip timestamps",
+      "Sales Talking Point": "Use with MCT intervention and DMS fatigue example."
+    }
+  },
+  {
+    "feature_id": "48",
+    "feature_name": "Harsh Acceleration / Harsh Braking Report",
+    "row_number": 110,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 48,
+      "Feature Name": "Harsh Acceleration / Harsh Braking Report",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Analytics",
+      "Module / Area": "Driving Behaviour",
+      "What it does": "Reports harsh acceleration and harsh braking events for driver behavior monitoring.",
+      "Business Value / Impact": "Improves safety, vehicle health, and driver coaching.",
+      "Dependencies / Inputs": "Device or telematics feed with HA/HB events",
+      "Sales Talking Point": "Part of standard safety scorecard package."
+    }
+  },
+  {
+    "feature_id": "49",
+    "feature_name": "Consignment Report",
+    "row_number": 111,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 49,
+      "Feature Name": "Consignment Report",
+      "Bucket": "Core Platform",
+      "Feature Type": "Core",
+      "Module / Area": "Trip / Consignment",
+      "What it does": "Post-trip consignment level report with trip timeline, events, and delivery details.",
+      "Business Value / Impact": "Operational audit, transporter performance review, dispute resolution.",
+      "Dependencies / Inputs": "Trip and LR/consignment data",
+      "Sales Talking Point": "Use as final trip evidence report for customer operations."
+    }
+  },
+  {
+    "feature_id": "50",
+    "feature_name": "Route Playback",
+    "row_number": 112,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 50,
+      "Feature Name": "Route Playback",
+      "Bucket": "Core Platform",
+      "Feature Type": "Core",
+      "Module / Area": "Trip Analytics",
+      "What it does": "Visual playback of the route traveled by the vehicle during a trip.",
+      "Business Value / Impact": "Audit trail, dispute handling, route compliance verification.",
+      "Dependencies / Inputs": "Continuous location feed",
+      "Sales Talking Point": "Useful for showing exact trip history instead of only current location."
+    }
+  },
+  {
+    "feature_id": "51",
+    "feature_name": "Detention Dashboard",
+    "row_number": 113,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 51,
+      "Feature Name": "Detention Dashboard",
+      "Bucket": "Value Add",
+      "Feature Type": "Analytics",
+      "Module / Area": "Delay / Detention",
+      "What it does": "Dashboard for detention analysis at loading/unloading or other stages.",
+      "Business Value / Impact": "Detention control, TAT improvement, site performance monitoring.",
+      "Dependencies / Inputs": "Stage timestamps, geofences, loading/unloading rules",
+      "Sales Talking Point": "Converts delays into site/vendor/accountability insights."
+    }
+  },
+  {
+    "feature_id": "52",
+    "feature_name": "Delay Dashboard",
+    "row_number": 114,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 52,
+      "Feature Name": "Delay Dashboard",
+      "Bucket": "Value Add",
+      "Feature Type": "Analytics",
+      "Module / Area": "Delay Management",
+      "What it does": "Dashboard for delay monitoring and trip exceptions.",
+      "Business Value / Impact": "Improved SLA monitoring, faster escalation, delay root cause visibility.",
+      "Dependencies / Inputs": "Trip milestones, ETA, SLA rules",
+      "Sales Talking Point": "Use to show where and why trips are getting delayed."
+    }
+  },
+  {
+    "feature_id": "53",
+    "feature_name": "Vehicle Status Dashboard",
+    "row_number": 115,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 53,
+      "Feature Name": "Vehicle Status Dashboard",
+      "Bucket": "Core Platform",
+      "Feature Type": "Core",
+      "Module / Area": "Fleet Visibility",
+      "What it does": "Shows fleet status such as loading, onward, available, return, and current vehicle state.",
+      "Business Value / Impact": "Fleet planning, dispatch visibility, faster allocation decisions.",
+      "Dependencies / Inputs": "Trip/fleet status rules",
+      "Sales Talking Point": "Good for operations teams who need a live fleet snapshot."
+    }
+  },
+  {
+    "feature_id": "54",
+    "feature_name": "Nearby Availability",
+    "row_number": 116,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 54,
+      "Feature Name": "Nearby Availability",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Fleet Planning",
+      "What it does": "Shows nearby vehicle availability by distance bands such as 10/30/50 km.",
+      "Business Value / Impact": "Resource optimization, faster vehicle placement, reduced empty movement.",
+      "Dependencies / Inputs": "Vehicle current location and destination/plant location",
+      "Sales Talking Point": "Use for planning next load and reducing manual transporter calls."
+    }
+  },
+  {
+    "feature_id": "55",
+    "feature_name": "Predictive Maintenance Updates",
+    "row_number": 117,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 55,
+      "Feature Name": "Predictive Maintenance Updates",
+      "Bucket": "Value Add",
+      "Feature Type": "Analytics",
+      "Module / Area": "Maintenance",
+      "What it does": "Predictive alerts/updates for vehicle maintenance based on data signals.",
+      "Business Value / Impact": "Reduced breakdowns, improved uptime, proactive fleet management.",
+      "Dependencies / Inputs": "Vehicle data, maintenance rules, device/CAN where applicable",
+      "Sales Talking Point": "Introduce when customer cares about uptime and maintenance cost."
+    }
+  },
+  {
+    "feature_id": "56",
+    "feature_name": "Mobile Application",
+    "row_number": 118,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 56,
+      "Feature Name": "Mobile Application",
+      "Bucket": "Core Platform",
+      "Feature Type": "Core",
+      "Module / Area": "Mobile App",
+      "What it does": "Mobile interface for field execution, driver/customer interaction, proof capture, and operational updates.",
+      "Business Value / Impact": "Digitized operations, faster field capture, improved adoption.",
+      "Dependencies / Inputs": "User roles, mobile access, process configuration",
+      "Sales Talking Point": "Position as field enablement layer for drivers, customers, and operations."
+    }
+  },
+  {
+    "feature_id": "57",
+    "feature_name": "Smart Integrations / APIs",
+    "row_number": 119,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 57,
+      "Feature Name": "Smart Integrations / APIs",
+      "Bucket": "Compliance & Integrations",
+      "Feature Type": "Core",
+      "Module / Area": "Integrations",
+      "What it does": "Integrates ERP/TMS/WMS, third-party GPS, FasTag/toll, government portals, OEM systems, 3PL/courier systems, and open APIs.",
+      "Business Value / Impact": "Single source of truth, scalable ecosystem, reduced manual updates.",
+      "Dependencies / Inputs": "API credentials, data mapping, integration scope",
+      "Sales Talking Point": "Use as architecture differentiator for enterprise rollouts."
+    }
+  },
+  {
+    "feature_id": "58",
+    "feature_name": "Fuel Management / CAN Devices",
+    "row_number": 120,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 58,
+      "Feature Name": "Fuel Management / CAN Devices",
+      "Bucket": "Value Add",
+      "Feature Type": "Value Add",
+      "Module / Area": "Telematics / Vehicle Data",
+      "What it does": "Uses CAN/device inputs for fuel and vehicle data visibility where required.",
+      "Business Value / Impact": "Fuel cost control, operational visibility, vehicle performance insights.",
+      "Dependencies / Inputs": "CAN/fuel sensor/device integration",
+      "Sales Talking Point": "Relevant for fleet-owned or high-fuel-cost operations."
+    }
+  },
+  {
+    "feature_id": "59",
+    "feature_name": "TMS Tender-to-Pay",
+    "row_number": 121,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 59,
+      "Feature Name": "TMS Tender-to-Pay",
+      "Bucket": "TMS",
+      "Feature Type": "Core",
+      "Module / Area": "Transport Management System",
+      "What it does": "End-to-end tender-to-pay flow covering LTC/auction, SO, JO, indent, spot bidding, vehicle placement, execution, ePOD, freight invoice and closure.",
+      "Business Value / Impact": "Cost governance, allocation speed, freight leakage control, faster settlement.",
+      "Dependencies / Inputs": "ERP/SO/JO/contracts/transporters/master data",
+      "Sales Talking Point": "Use when discussion moves from visibility to full logistics execution and settlement."
+    }
+  },
+  {
+    "feature_id": "60",
+    "feature_name": "Vehicle Placement",
+    "row_number": 122,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 60,
+      "Feature Name": "Vehicle Placement",
+      "Bucket": "TMS",
+      "Feature Type": "Core",
+      "Module / Area": "TMS Execution",
+      "What it does": "Placement confirmation and SLA tracking for allocated transporter/vehicle.",
+      "Business Value / Impact": "Faster allocation, placement discipline, SLA governance.",
+      "Dependencies / Inputs": "Indent/JO, transporter allocation, vehicle master",
+      "Sales Talking Point": "Link with TMS and live tracking for execution continuity."
+    }
+  },
+  {
+    "feature_id": "61",
+    "feature_name": "Freight Invoice / Settlement",
+    "row_number": 123,
+    "source_file": "Feature_catalogue.xlsx",
+    "full_row": {
+      "Feature ID": 61,
+      "Feature Name": "Freight Invoice / Settlement",
+      "Bucket": "TMS",
+      "Feature Type": "Core",
+      "Module / Area": "TMS Settlement",
+      "What it does": "Contract/bid-based freight invoice validation, dispute control, approvals and settlement readiness.",
+      "Business Value / Impact": "Faster delivery-to-POD-to-invoice-to-payment cycle, reduced dispute.",
+      "Dependencies / Inputs": "Contract rates, bid data, ePOD/consignment data",
+      "Sales Talking Point": "Close the story: tracking and ePOD enable cleaner freight settlement."
+    }
+  }
+]
