@@ -1,0 +1,6 @@
+# SolutionsDesk Voice — backend address
+# Put your deployed Render URL on a single line below (no trailing slash), e.g.
+#   https://solutionsdesk.onrender.com
+# This file must sit NEXT TO SolutionsDesk.exe. Edit it any time — no rebuild needed.
+# While testing locally, leave the localhost line.
+http://localhost:5001

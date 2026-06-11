@@ -1,0 +1,25 @@
+# Render deployment blueprint for SolutionsDesk (Flask RAG chatbot).
+# Single worker: the RAG model + FAISS indexes load once at boot into the
+# global `rag` object, so multiple workers would multiply memory use.
+# Threads + long timeout keep the SSE /api/chat/stream endpoint alive.
+services:
+  - type: web
+    name: solutionsdesk
+    runtime: python
+    plan: starter            # free/starter = 512MB RAM; OpenAI provider keeps us under it
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app_new:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    healthCheckPath: /health
+    envVars:
+      - key: EMBEDDING_PROVIDER   # committed FAISS indexes were built with OpenAI embeddings
+        value: openai
+      - key: LLM_PROVIDER
+        value: openai
+      - key: OPENAI_API_KEY       # set in the Render dashboard (do not commit)
+        sync: false
+      - key: OPENAI_EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: FLASK_SECRET_KEY     # generate a random value in the dashboard
+        sync: false
+      - key: RELOAD_TOKEN         # protects /api/reload-catalog
+        sync: false

@@ -3,16 +3,15 @@ Online Mode — voice input + always-on-top floating window.
 
 Flow:
     click ▶ Start  -> record your mic AND the call audio (system output, via loopback)
-    click ■ Stop   -> mix both sides, transcribe via OpenAI Whisper (whisper-1)
+    click ■ Stop   -> mix both sides, upload to the backend's /api/transcribe (Whisper)
                    -> transcript shown in the window
-    click "Send to RAG" -> POST the transcript to the Flask backend (/api/chat)
-                   -> colored answer shown in the window
+    click "Send to RAG" -> POST the transcript to /api/chat/stream
+                   -> colored answer streams into the window
 
-Normally started for you by the web UI ("MODES → Online · ..." dropdown), but you
-can also run it directly:
-    python online_mode.py
-
-Requires OPENAI_API_KEY in .env (Whisper is an OpenAI API call).
+Connects to the backend at SOLUTIONSDESK_BACKEND / backend.txt / DEFAULT_BACKEND
+(see Config below). Transcription and the OpenAI key live on the server, so this
+client needs no API key. Normally started by the web UI ("MODES → Online · …"),
+but can also be run directly:  python online_mode.py
 """
 
 import html as _html
@@ -38,13 +37,50 @@ from PyQt6.QtWidgets import (
 )
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
-RAG_URL        = "http://localhost:5001/api/chat"
-RAG_STREAM_URL = "http://localhost:5001/api/chat/stream"
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-WHISPER_MODEL  = os.getenv("OPENAI_WHISPER_MODEL", "whisper-1")
+def _app_dir() -> str:
+    """Folder the app runs from — next to the .exe when packaged, else the script dir."""
+    if getattr(sys, "frozen", False):           # True inside a PyInstaller build
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+load_dotenv(os.path.join(_app_dir(), ".env"))
+
+# Where the RAG backend lives. For the packaged app, set this to your deployed
+# Render URL (e.g. "https://solutionsdesk.onrender.com"). Resolution order:
+#   1) SOLUTIONSDESK_BACKEND environment variable
+#   2) a "backend.txt" file placed next to the .exe (first non-comment line)
+#   3) DEFAULT_BACKEND below
+# This lets you change the URL without rebuilding the .exe — just edit backend.txt.
+DEFAULT_BACKEND = "http://localhost:5001"
+
+
+def _resolve_backend() -> str:
+    env = os.getenv("SOLUTIONSDESK_BACKEND", "").strip()
+    if env:
+        return env.rstrip("/")
+    try:
+        with open(os.path.join(_app_dir(), "backend.txt"), encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return line.rstrip("/")
+    except OSError:
+        pass
+    return DEFAULT_BACKEND.rstrip("/")
+
+
+BACKEND_URL    = _resolve_backend()
+RAG_STREAM_URL = f"{BACKEND_URL}/api/chat/stream"
+TRANSCRIBE_URL = f"{BACKEND_URL}/api/transcribe"
+API_KEY        = os.getenv("SOLUTIONSDESK_API_KEY", "").strip()   # optional; sent if set
 REC_SR         = 48000          # capture rate; Whisper handles it fine
 SINGLETON_PORT = 49222          # single-instance lock (prevents duplicate windows)
+
+
+def _auth_headers() -> dict:
+    """Send an API key header only if one is configured (server may require it)."""
+    return {"X-API-Key": API_KEY} if API_KEY else {}
 
 
 # ── Thread → UI signal bridge ───────────────────────────────────────────────────
@@ -115,11 +151,13 @@ def stop_and_transcribe() -> str:
     wav_path = os.path.join(tempfile.gettempdir(), "solutionsdesk_voice.wav")
     sf.write(wav_path, mixed, REC_SR)
 
-    from openai import OpenAI
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    # Transcribe via the backend's /api/transcribe (keeps the OpenAI key on the
+    # server — never shipped inside the distributed .exe).
     with open(wav_path, "rb") as f:
-        tr = client.audio.transcriptions.create(model=WHISPER_MODEL, file=f)
-    return (getattr(tr, "text", "") or "").strip()
+        files = {"audio": ("voice.wav", f, "audio/wav")}
+        r = httpx.post(TRANSCRIBE_URL, files=files, headers=_auth_headers(), timeout=120)
+    r.raise_for_status()
+    return (r.json().get("text") or "").strip()
 
 
 # ── Convert the RAG block JSON into colored HTML (matches the web chat) ─────────
@@ -219,7 +257,8 @@ def ask_rag():
     payload = {"messages": [{"role": "user", "content": query}]}
     try:
         got_any = False
-        with httpx.stream("POST", RAG_STREAM_URL, json=payload, timeout=120) as res:
+        with httpx.stream("POST", RAG_STREAM_URL, json=payload,
+                          headers=_auth_headers(), timeout=120) as res:
             if res.status_code != 200:
                 res.read()
                 bridge.answer.emit(f"Error: HTTP {res.status_code}")
@@ -357,9 +396,6 @@ class FloatingWindow(QWidget):
     def on_play(self):
         """Start recording from the microphone (+ call audio if 'Me + call')."""
         global _captured
-        if not OPENAI_API_KEY:
-            self.status.setText("OPENAI_API_KEY not set in .env — can't transcribe.")
-            return
         _captured = ""
         self.caption.clear()
         try:
