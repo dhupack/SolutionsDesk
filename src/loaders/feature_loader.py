@@ -1,10 +1,14 @@
+from __future__ import annotations   # defer annotation eval so build-only pandas can be imported lazily
+
 import logging
 import json
 from pathlib import Path
 from typing import Dict, List, Tuple
-import pandas as pd
 import faiss
 import numpy as np
+# NOTE: pandas is imported lazily inside the build-time methods below. It is only
+# needed to read the feature Excel sheets when (re)building the index, never to
+# serve queries — keeping it out of the import path saves ~40MB at runtime.
 
 from config import (
     FEATURE_SHEET_DIR,
@@ -27,6 +31,7 @@ class FeatureLoader:
         self.features_df = None
 
     def _find_sheet(self, excel_file) -> str:
+        import pandas as pd
         xl = pd.ExcelFile(excel_file)
         for sheet in xl.sheet_names:
             if sheet.lower() == FEATURE_SHEET_NAME.lower():
@@ -34,6 +39,7 @@ class FeatureLoader:
         return None
 
     def load_feature_sheets(self) -> pd.DataFrame:
+        import pandas as pd
         excel_files = list(FEATURE_SHEET_DIR.glob("*.xlsx")) + list(FEATURE_SHEET_DIR.glob("*.xls"))
         if not excel_files:
             logger.warning(f"No Excel files found in {FEATURE_SHEET_DIR}")
@@ -59,6 +65,7 @@ class FeatureLoader:
         return pd.DataFrame()
 
     def prepare_feature_texts(self, df: pd.DataFrame) -> List[Tuple[str, Dict]]:
+        import pandas as pd
         feature_texts = []
         for idx, row in df.iterrows():
             def get(col):

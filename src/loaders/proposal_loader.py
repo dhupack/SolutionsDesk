@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import faiss
 import numpy as np
-import PyPDF2
-from pptx import Presentation
-from docx import Document
+# NOTE: PyPDF2 / python-pptx / python-docx are imported lazily inside the
+# _extract_* helpers below. They are only needed to parse source documents when
+# (re)building the proposal index, never to serve queries — keeping them out of
+# the import path keeps the runtime (serving) memory footprint small.
 
 from config import (
     RAW_PROPOSALS_DIR,
@@ -135,6 +136,7 @@ def _split_paged(para_page: List[Tuple[str, str]], target_words: int = 300, over
 
 
 def _extract_pdf(file_path: Path) -> List[Tuple[str, int]]:
+    import PyPDF2
     pages = []
     try:
         with open(file_path, 'rb') as f:
@@ -149,6 +151,7 @@ def _extract_pdf(file_path: Path) -> List[Tuple[str, int]]:
 
 
 def _extract_ppt(file_path: Path) -> List[Tuple[str, int]]:
+    from pptx import Presentation
     slides = []
     try:
         prs = Presentation(file_path)
@@ -166,6 +169,7 @@ def _extract_ppt(file_path: Path) -> List[Tuple[str, int]]:
 
 
 def _extract_word(file_path: Path) -> List[Tuple[str, str]]:
+    from docx import Document
     sections = []
     try:
         doc = Document(file_path)
