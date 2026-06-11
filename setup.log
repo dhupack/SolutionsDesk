@@ -1,0 +1,60 @@
+2026-06-11 16:01:26,407 - setup - INFO - Found 2 Excel files
+2026-06-11 16:01:37,776 - src.loaders.feature_loader - INFO - Loaded 61 features from CPL_Feature_Catalogue_Plant_Port.xlsx (sheet: Feature Catalogue)
+2026-06-11 16:01:37,988 - src.loaders.feature_loader - INFO - Loaded 61 features from XSWIFT_Feature_Catalogue.xlsx (sheet: Feature Catalogue)
+2026-06-11 16:01:38,034 - src.loaders.feature_loader - INFO - Embedding 122 features...
+2026-06-11 16:01:40,303 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-06-11 16:01:42,878 - src.loaders.feature_loader - INFO - Feature FAISS index created: 122 vectors, dim=3072
+2026-06-11 16:01:42,894 - src.loaders.feature_loader - INFO - Feature index saved
+2026-06-11 16:01:42,894 - src.loaders.feature_loader - INFO - Feature index built with 122 features
+2026-06-11 16:01:42,894 - setup - INFO - Feature index built with 122 features
+2026-06-11 16:01:42,906 - setup - INFO - Found 44 raw proposal files
+2026-06-11 16:01:44,277 - src.loaders.proposal_loader - INFO - No usable chunks from Axestrack' s response to ABG Trading - Automation of Port - Proposal Document.pdf
+2026-06-11 16:01:44,439 - src.loaders.proposal_loader - INFO -   Axestrack' s response to ABG Trading - Automation of Port v4.pptx -> 14 chunks
+2026-06-11 16:01:44,490 - src.loaders.proposal_loader - INFO - No usable chunks from Cost Estimates for ABG Trading - Automation of Port.pdf
+2026-06-11 16:01:44,684 - src.loaders.proposal_loader - INFO -   Response to ABG Trading v4.docx -> 20 chunks
+2026-06-11 16:01:44,751 - src.loaders.proposal_loader - INFO -   Axestrack Software Solutions - MCT SOW v6.docx -> 13 chunks
+2026-06-11 16:01:45,030 - src.loaders.proposal_loader - INFO - No usable chunks from Adani Ennore Port- Solution Document.pdf
+2026-06-11 16:01:45,049 - src.loaders.proposal_loader - INFO -   Hardware Warranty & AMC - Terms and Conditions v2.docx -> 1 chunks
+2026-06-11 16:01:45,160 - src.loaders.proposal_loader - INFO -   Proposal ADANI PORT v7.docx -> 22 chunks
+2026-06-11 16:01:45,273 - src.loaders.proposal_loader - INFO -   POCDMS_Adani_report v4.pptx -> 11 chunks
+2026-06-11 16:01:45,388 - src.loaders.proposal_loader - INFO -   Introduction to Axestrack's Solution.pptx -> 10 chunks
+2026-06-11 16:01:45,490 - src.loaders.proposal_loader - INFO -   Axestrack Corporate Solution fo Amazon GPS Health Camp v1.pptx -> 15 chunks
+2026-06-11 16:01:45,580 - src.loaders.proposal_loader - INFO -   Axestrack's Proposal for Amazon ITCT.pdf -> 2 chunks
+2026-06-11 16:01:45,645 - src.loaders.proposal_loader - INFO -   Survey Report - Amazon v2.pptx -> 7 chunks
+2026-06-11 16:01:45,710 - src.loaders.proposal_loader - INFO -   Technical Proposal-AMNS (Repaired).docx -> 16 chunks
+2026-06-11 16:01:46,019 - src.loaders.proposal_loader - INFO - No usable chunks from Technical Proposal-AMNS.pdf
+2026-06-11 16:01:46,287 - src.loaders.proposal_loader - INFO - No usable chunks from Solution Document-AMNS.pdf
+2026-06-11 16:01:49,718 - src.loaders.proposal_loader - INFO -   04.07.25- RFP - Logistics Digitization and Automation Mines Phase-2_v2_Legalvetted.pdf -> 42 chunks
+2026-06-11 16:01:50,505 - src.loaders.proposal_loader - INFO - No usable chunks from 6000138920.pdf
+2026-06-11 16:01:51,394 - src.loaders.proposal_loader - INFO - No usable chunks from 6000138921.pdf
+2026-06-11 16:01:51,690 - src.loaders.proposal_loader - INFO -   6000138923.pdf -> 1 chunks
+2026-06-11 16:01:51,859 - src.loaders.proposal_loader - INFO -   6000138924.pdf -> 1 chunks
+2026-06-11 16:01:51,909 - src.loaders.proposal_loader - INFO -   Technical Proposal- AMNS.docx -> 5 chunks
+2026-06-11 16:01:52,210 - src.loaders.proposal_loader - INFO -   Annexure -I - 282497.pdf -> 5 chunks
+2026-06-11 16:01:52,326 - src.loaders.proposal_loader - INFO -   Annexure II - 282497.pdf -> 4 chunks
+2026-06-11 16:01:52,993 - src.loaders.proposal_loader - INFO -   Annexure III - 282497.pdf -> 13 chunks
+2026-06-11 16:01:53,197 - src.loaders.proposal_loader - INFO -   Response to RFQ.docx -> 25 chunks
+2026-06-11 16:01:53,287 - src.loaders.proposal_loader - INFO - No usable chunks from Platform Commercials to Apcotex 03Nov2025 (Revised).pdf
+2026-06-11 16:01:53,402 - src.loaders.proposal_loader - INFO -   Technical Proposal-Apcotex V3.docx -> 10 chunks
+2026-06-11 16:01:54,036 - src.loaders.proposal_loader - INFO - No usable chunks from Technical Proposal-Apcotex.pdf
+2026-06-11 16:01:54,098 - src.loaders.proposal_loader - INFO -   Response to Asahi India Glass Ltd v4.pptx -> 12 chunks
+2026-06-11 16:01:54,189 - src.loaders.proposal_loader - INFO -   Response to Asahi India Glass.docx -> 14 chunks
+2026-06-11 16:01:54,217 - src.loaders.proposal_loader - INFO -   Axestrack's Buinsess Case for Ashok Layland Alwar RSO v2.pptx -> 3 chunks
+2026-06-11 16:01:54,261 - src.loaders.proposal_loader - INFO -   Business Case- Bharat (Draft).docx -> 1 chunks
+2026-06-11 16:01:54,429 - src.loaders.proposal_loader - INFO -   Proposal Ashok LeyLand v2.docx -> 17 chunks
+2026-06-11 16:01:54,571 - src.loaders.proposal_loader - INFO -   Yard Management Proposal Ashok LeyLand v2.docx -> 19 chunks
+2026-06-11 16:01:54,672 - src.loaders.proposal_loader - INFO -   Proposal Ashok LeyLand v3.docx -> 18 chunks
+2026-06-11 16:01:54,838 - src.loaders.proposal_loader - INFO -   Axestrack Corporate Solution- Ashok Leyland v5.pptx -> 18 chunks
+2026-06-11 16:01:54,921 - src.loaders.proposal_loader - INFO -   POC scope document for Dedicated Devices.docx -> 12 chunks
+2026-06-11 16:01:54,996 - src.loaders.proposal_loader - INFO -   POC scope document for Reverse Logistics.docx -> 13 chunks
+2026-06-11 16:01:56,612 - src.loaders.proposal_loader - INFO - No usable chunks from superset.pdf
+2026-06-11 16:01:56,722 - src.loaders.proposal_loader - INFO -   Response to Ather v3.pptx -> 11 chunks
+2026-06-11 16:01:56,973 - src.loaders.proposal_loader - INFO -   Response to Ather v5.docx -> 14 chunks
+2026-06-11 16:01:57,132 - src.loaders.proposal_loader - INFO -   Axestrack's_Solutions_Doc_for_ATUL_Limited.docx -> 12 chunks
+2026-06-11 16:01:57,209 - src.loaders.proposal_loader - INFO -   Axestrack's Solutions Document for ATUL.docx -> 12 chunks
+2026-06-11 16:01:57,210 - src.loaders.proposal_loader - INFO - Total proposal chunks from raw files: 413
+2026-06-11 16:01:57,211 - src.loaders.proposal_loader - INFO - Embedding 413 proposal chunks...
+2026-06-11 16:02:00,676 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2026-06-11 16:02:07,266 - src.loaders.proposal_loader - INFO - Proposal FAISS index: 413 vectors, dim=3072
+2026-06-11 16:02:07,297 - src.loaders.proposal_loader - INFO - Proposal index saved
+2026-06-11 16:02:07,298 - setup - INFO - Proposal index built with 413 chunks

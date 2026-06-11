@@ -4,7 +4,6 @@ from src.extraction import ExtractionPipeline, DocumentParser, SectionIdentifier
 from src.loaders import FeatureLoader, ProposalLoader
 from src.retrieval import TierRetrieval
 from src.rag import RAGWorkflow
-from src.cli import RAGChatbot
 
 __all__ = [
     "ExtractionPipeline",
@@ -15,5 +14,4 @@ __all__ = [
     "ProposalLoader",
     "TierRetrieval",
     "RAGWorkflow",
-    "RAGChatbot"
 ]

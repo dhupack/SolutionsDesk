@@ -1,5 +1,6 @@
 """CLI module for interactive chatbot."""
 
-from src.cli.chatbot import RAGChatbot
+# Note: the interactive CLI (RAGChatbot) was never implemented in this repo.
+# The web app (app_new.py) uses RAGWorkflow directly and does not need it.
 
-__all__ = ["RAGChatbot"]
+__all__ = []

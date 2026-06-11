@@ -17,8 +17,8 @@ services:
         value: openai
       - key: OPENAI_API_KEY       # set in the Render dashboard (do not commit)
         sync: false
-      - key: OPENAI_EMBEDDING_MODEL
-        value: text-embedding-3-small
+      - key: OPENAI_EMBEDDING_MODEL   # must match the model the committed FAISS indexes were built with (3072-dim)
+        value: text-embedding-3-large
       - key: FLASK_SECRET_KEY     # generate a random value in the dashboard
         sync: false
       - key: RELOAD_TOKEN         # protects /api/reload-catalog
