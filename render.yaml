@@ -8,9 +8,11 @@ services:
     runtime: python
     plan: free               # 512MB RAM; spins down after ~15min idle (cold start ~30-60s). OpenAI provider keeps us under the limit
     buildCommand: pip install -r requirements.txt
-    # --max-requests recycles the single worker every ~100 requests (jittered) so any
-    # slow memory growth is reclaimed — important to stay under the 512MB free-tier cap.
-    startCommand: gunicorn app_new:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --max-requests 100 --max-requests-jitter 20
+    # --max-requests recycles the single worker periodically so any slow memory growth is
+    # reclaimed. Note: Render health-checks /health every ~5s, so request count is dominated
+    # by health checks (~700/hr), NOT user queries. 700 => recycle roughly hourly instead of
+    # every ~8 min, which avoids the brief 503s while a fresh worker reloads the indexes.
+    startCommand: gunicorn app_new:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --max-requests 700 --max-requests-jitter 100
     healthCheckPath: /health
     envVars:
       - key: EMBEDDING_PROVIDER   # committed FAISS indexes were built with OpenAI embeddings
