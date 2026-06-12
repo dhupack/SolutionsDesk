@@ -506,9 +506,32 @@ def online_mode_stop():
     return jsonify({'status': 'not_running'})
 
 
+def _push_feedback_to_sheet(entry: dict):
+    """Send one feedback row to a Google Sheet (Apps Script web app), if configured.
+    Captures BOTH thumbs up and down (the 'rating' field). Runs in a background thread,
+    best-effort: never blocks or fails the user's feedback response."""
+    url = os.getenv('FEEDBACK_SHEET_URL', '').strip()
+    if not url:
+        return
+    payload = dict(entry)
+    payload['token'] = os.getenv('FEEDBACK_SHEET_TOKEN', '')   # optional shared secret
+
+    def _send():
+        try:
+            import httpx
+            httpx.post(url, json=payload, timeout=10, follow_redirects=True)
+        except Exception:
+            pass
+
+    import threading
+    threading.Thread(target=_send, daemon=True).start()
+
+
 @app.route('/api/feedback', methods=['POST'])
 def feedback():
-    """Record a thumbs up/down on an answer (and an optional remark) to feedback.jsonl."""
+    """Record a thumbs up/down (and optional remark). Appends to feedback.jsonl (local /
+    ephemeral on Render) AND, if FEEDBACK_SHEET_URL is set, pushes to a Google Sheet for
+    persistent storage you can actually read. Both up and down are recorded."""
     data = request.get_json(silent=True) or {}
     entry = {
         'time':     datetime.now(timezone.utc).isoformat(),
@@ -521,8 +544,9 @@ def feedback():
     try:
         with open(path, 'a', encoding='utf-8') as f:
             f.write(_json.dumps(entry, ensure_ascii=False) + '\n')
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        pass   # local file is a nice-to-have; the Sheet is the source of truth
+    _push_feedback_to_sheet(entry)
     return jsonify({'status': 'ok'})
 
 
