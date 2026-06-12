@@ -570,6 +570,7 @@ def transcribe():
 
 
 @app.route('/health')
+@limiter.exempt   # Render polls this every ~5s; never rate-limit it or Render kills the instance
 def health():
     import config
     fl = rag.tier_retrieval.feature_loader
