@@ -19,11 +19,13 @@ class RAGState(TypedDict):
 
 
 # ── Score thresholds ───────────────────────────────────────────────────────────
-# Tuned for OpenAI text-embedding-3-large (higher noise floor than local mpnet):
-#   clear feature hits ~0.63+ · clear proposal hits ~0.60+ · unrelated noise ~0.34-0.48
-_FEATURE_STRONG   = 0.55   # clear, direct feature match wins Tier 1
-_PROPOSAL_STRONG  = 0.52   # genuine proposal match (non-impl query) → proposal tier
-_PROPOSAL_PRESENT = 0.42   # below this the proposal is noise → ignore (lets Tier 3 trigger)
+# Calibrated for OpenAI text-embedding-3-large (3072-dim — the model that built the
+# index). Measured cosine scores are compressed: genuine feature/proposal matches land
+# ~0.45-0.50, unrelated noise ~0.20-0.35. (The earlier 0.55 cutoff was too high, so
+# almost every real query wrongly fell through to Tier 3 / General Knowledge.)
+_FEATURE_STRONG   = 0.43   # clear, direct feature match wins Tier 1
+_PROPOSAL_STRONG  = 0.43   # genuine proposal match (non-impl query) → proposal tier
+_PROPOSAL_PRESENT = 0.36   # below this the proposal is noise → ignore (lets Tier 3 trigger)
 
 # ── Per-source JSON schemas ────────────────────────────────────────────────────
 _SCHEMA_FEATURE = '''{
@@ -100,27 +102,29 @@ class RAGWorkflow:
         for better FAISS retrieval. Falls back to original on any error.
         """
         prompt = (
-            "You are a query cleaner for a B2B logistics software assistant.\n"
-            "The knowledge base is in ENGLISH, so the cleaned query MUST be in English.\n"
-            "Clean the query below by ONLY:\n"
-            "- Translating it to English if it is in any other language or script (e.g. Hindi, Hinglish/Romanized Hindi). Preserve the EXACT meaning and the SAME question type — translate, do not answer or reinterpret.\n"
-            "- Fixing typos (e.g. 'wt did' → 'what did', '4' → 'for')\n"
-            "- Expanding logistics abbreviations (e.g. DMS → Driver Monitoring System, ePOD → Electronic Proof of Delivery, RFID → Radio Frequency Identification)\n"
-            "- Expanding product shorthand (e.g. 'dashcam thing' → 'dashcam and Driver Monitoring System for fleet safety')\n\n"
-            "STRICT RULES — do NOT:\n"
-            "- Change the type of question ('what is X?' must stay 'what is X?', never becomes 'which feature handles X?')\n"
-            "- Add Axestrack product names or feature names unless they were in the original\n"
-            "- Add context or information not present in the original\n"
-            "- Rephrase or restructure the question\n\n"
-            "If the query is already clear, return it unchanged.\n"
-            "Return ONLY the cleaned query. No explanation, no quotes.\n\n"
-            f"Query: {query}"
+            "You turn a user's message into a concise SEARCH QUERY for a B2B logistics\n"
+            "software knowledge base. The knowledge base is in ENGLISH, so the result MUST\n"
+            "be English. Produce the core information need — the capability, feature, or\n"
+            "topic being asked about — with the filler removed.\n\n"
+            "DO:\n"
+            "- Translate to English if it's in another language/script (Hindi, Hinglish/Romanized Hindi). Preserve the EXACT meaning.\n"
+            "- Strip conversational filler and politeness so only the real subject remains. "
+            "e.g. 'i want to see my truck's location so do you have any solution for it' → 'truck location tracking'; "
+            "'can you help me with driver fatigue' → 'driver fatigue monitoring'.\n"
+            "- Fix typos ('wt did' → 'what did').\n"
+            "- Expand abbreviations (DMS → Driver Monitoring System, ePOD → Electronic Proof of Delivery, RFID → Radio Frequency Identification).\n\n"
+            "DO NOT:\n"
+            "- Change the question TYPE ('what is X?' stays a 'what is X?' question; don't turn it into 'which feature handles X?').\n"
+            "- Invent Axestrack product or feature names that weren't implied by the user.\n"
+            "- Add facts or constraints the user did not state.\n\n"
+            "Keep it short (a noun phrase or a short question). Return ONLY the search query — no explanation, no quotes.\n\n"
+            f"User message: {query}"
         )
         try:
             response = self.llm.invoke(prompt)
             rewritten = (response.content if hasattr(response, 'content') else str(response)).strip()
             # Safety: if rewrite is empty, too short, or suspiciously long, use original
-            if 10 <= len(rewritten) <= 400:
+            if 3 <= len(rewritten) <= 400:
                 logger.info(f"Query rewrite: '{query}' → '{rewritten}'")
                 return rewritten
         except Exception as e:

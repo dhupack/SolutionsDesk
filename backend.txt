@@ -3,4 +3,5 @@
 #   https://solutionsdesk.onrender.com
 # This file must sit NEXT TO SolutionsDesk.exe. Edit it any time — no rebuild needed.
 # While testing locally, leave the localhost line.
-http://localhost:5001
+# http://localhost:5001
+https://solutionsdesk.onrender.com/
