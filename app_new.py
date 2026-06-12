@@ -526,6 +526,18 @@ def feedback():
     return jsonify({'status': 'ok'})
 
 
+# Biases Whisper toward Axestrack/logistics vocabulary so it stops substituting
+# common words (e.g. "overspeeding" → "oversteering"). Whisper uses this as a hint
+# of the expected terms/style (max ~224 tokens).
+WHISPER_PROMPT = (
+    "Axestrack fleet and logistics software. Likely terms: overspeeding, over-speeding, "
+    "GPS tracking, real-time vehicle tracking, geofencing, ePOD, electronic proof of delivery, "
+    "RFID, driver monitoring system, driver fatigue, dashcam, ADAS, DMS, FMS, yard management, "
+    "weighbridge, trip management, route optimization, telematics, SIM tracking, consignment, "
+    "in-plant logistics, trucks, drivers, XSWIFT, CPL, plant, port."
+)
+
+
 @app.route('/api/transcribe', methods=['POST'])
 def transcribe():
     """Speech-to-text for the in-page mic via OpenAI Whisper.
@@ -539,7 +551,7 @@ def transcribe():
         return jsonify({'error': 'no audio uploaded'}), 400
     model = os.getenv('OPENAI_WHISPER_MODEL', 'whisper-1')
     lang = (request.form.get('lang') or '').strip()  # 'en' | 'hi' | ''
-    data = {'model': model}
+    data = {'model': model, 'prompt': WHISPER_PROMPT}
     if lang:
         data['language'] = lang
     files = {'file': (f.filename or 'audio.webm', f.stream, f.mimetype or 'audio/webm')}
