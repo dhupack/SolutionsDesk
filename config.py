@@ -29,19 +29,20 @@ LLM_MODEL = "llama-3.3-70b-versatile"
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_LLM_MODEL = os.getenv("OPENAI_LLM_MODEL", "gpt-4o-mini")          # or "gpt-4o"
-OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")  # or "text-embedding-3-large"
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")  # 3072-dim — must match the committed FAISS indexes
 
-# Embedding — local sentence-transformers fallback (no API key needed)
-EMBEDDING_MODEL = "all-mpnet-base-v2"
+# Other embedding options — disabled (kept for reference):
+#   text-embedding-3-small        # OpenAI, 1536-dim — would require rebuilding the FAISS indexes
+#   EMBEDDING_MODEL = "all-mpnet-base-v2"   # local sentence-transformers, 768-dim — would require rebuilding the FAISS indexes
 
 
 def get_embeddings():
-    """Return the configured embeddings backend (OpenAI or local sentence-transformers)."""
-    if EMBEDDING_PROVIDER == "openai":
-        from langchain_openai import OpenAIEmbeddings
-        return OpenAIEmbeddings(model=OPENAI_EMBEDDING_MODEL, api_key=OPENAI_API_KEY)
-    from langchain_huggingface import HuggingFaceEmbeddings
-    return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    """Return the OpenAI embeddings backend (text-embedding-3-large)."""
+    from langchain_openai import OpenAIEmbeddings
+    return OpenAIEmbeddings(model=OPENAI_EMBEDDING_MODEL, api_key=OPENAI_API_KEY)
+    # Local fallback — disabled (see the commented EMBEDDING_MODEL above):
+    # from langchain_huggingface import HuggingFaceEmbeddings
+    # return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 
 
 def get_llm(temperature: float = 0.2):

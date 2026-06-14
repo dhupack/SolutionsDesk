@@ -599,8 +599,7 @@ def health():
     import config
     fl = rag.tier_retrieval.feature_loader
     dim = fl.faiss_index.d if (fl is not None and getattr(fl, 'faiss_index', None) is not None) else None
-    model = (config.OPENAI_EMBEDDING_MODEL if config.EMBEDDING_PROVIDER == 'openai'
-             else config.EMBEDDING_MODEL)
+    model = config.OPENAI_EMBEDDING_MODEL
     return jsonify({
         'status': 'ok',
         'rag_ready': _rag_ready,
