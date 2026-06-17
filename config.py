@@ -83,6 +83,13 @@ MAX_CONVERSATION_HISTORY = 10
 FEATURE_SHEET_GSHEET_ID = os.getenv("FEATURE_SHEET_GSHEET_ID", "1XguMyC67fsc73Ujpv2YDOFApE6Ztt6klTMbMUgrOJ1s")
 # Tabs to read from the workbook. Empty/None means "read every tab".
 FEATURE_SHEET_TABS = ["XSWIFT_Feature_Catalogue", "CPL_Feature_Catalogue"]
+# Per-tab gids for the reliable CSV export (export?format=csv&gid=<gid>). This path
+# uses only the stdlib `csv` module — NO pandas/openpyxl — so the rebuild stays well
+# under Render's 512MB limit (importing pandas at runtime was OOM-killing the worker).
+FEATURE_SHEET_TAB_GIDS = {
+    "XSWIFT_Feature_Catalogue": os.getenv("FEATURE_SHEET_XSWIFT_GID", "0"),
+    "CPL_Feature_Catalogue":    os.getenv("FEATURE_SHEET_CPL_GID", "1728231193"),
+}
 FEATURE_SHEET_XLSX_URL = (
     f"https://docs.google.com/spreadsheets/d/{FEATURE_SHEET_GSHEET_ID}/export?format=xlsx"
     if FEATURE_SHEET_GSHEET_ID else ""

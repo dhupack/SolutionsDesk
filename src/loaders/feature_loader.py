@@ -18,6 +18,8 @@ from config import (
     FEATURE_METADATA_PATH,
     FEATURE_SHEET_XLSX_URL,
     FEATURE_SHEET_TABS,
+    FEATURE_SHEET_GSHEET_ID,
+    FEATURE_SHEET_TAB_GIDS,
     get_embeddings,
 )
 
@@ -39,6 +41,77 @@ class FeatureLoader:
             if sheet.lower() == FEATURE_SHEET_NAME.lower():
                 return sheet
         return None
+
+    def load_from_gsheet_csv(self) -> List[Dict]:
+        """Pull the catalogue from the Google Sheet using the per-tab CSV export and
+        the stdlib `csv` module — NO pandas/openpyxl. This keeps a server-side rebuild
+        well under Render's 512MB limit (importing pandas at runtime OOM-killed the
+        worker). Returns a list of plain row dicts, each tagged with its source tab and
+        per-tab row number. Empty list on any failure (caller falls back to Excel).
+        """
+        import csv as _csv
+        import io
+        import urllib.request
+
+        if not FEATURE_SHEET_GSHEET_ID:
+            return []
+        rows: List[Dict] = []
+        for tab, gid in (FEATURE_SHEET_TAB_GIDS or {}).items():
+            url = (f"https://docs.google.com/spreadsheets/d/{FEATURE_SHEET_GSHEET_ID}"
+                   f"/export?format=csv&gid={gid}")
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    text = resp.read().decode("utf-8")
+            except Exception as e:
+                logger.error(f"Failed to pull tab '{tab}' (gid={gid}): {e}")
+                return []   # all-or-nothing: don't build a partial index
+            reader = _csv.DictReader(io.StringIO(text))
+            count = 0
+            for i, row in enumerate(reader):
+                if not any((v or "").strip() for v in row.values()):
+                    continue   # skip blank rows
+                row["_source_tab"] = tab
+                row["_row_number"] = i + 2   # +1 header, +1 to 1-based
+                rows.append(row)
+                count += 1
+            logger.info(f"Pulled {count} features from tab '{tab}' (gid={gid}) via CSV")
+        return rows
+
+    def prepare_feature_texts_from_rows(self, rows: List[Dict]) -> List[Tuple[str, Dict]]:
+        """pandas-free equivalent of prepare_feature_texts() for plain CSV row dicts."""
+        feature_texts = []
+        for row in rows:
+            def get(col):
+                v = str(row.get(col, "") or "").strip()
+                return "" if v.lower() == "nan" else v
+
+            name   = get("Feature Name")
+            what   = get("What it does")
+            value  = get("Business Value / Impact")
+            deps   = get("Dependencies / Inputs")
+            sales  = get("Sales Talking Point")
+            module = get("Module / Area")
+            bucket = get("Bucket")
+
+            combined_text = (
+                f"{name}. {name}. "
+                f"This feature is about {module} in the {bucket} area. "
+                f"What it does: {what}. "
+                f"Business value: {value}. "
+                f"Sales context: {sales}. "
+                f"Requires: {deps}."
+            )
+            full_row = {k: v for k, v in row.items() if k not in ("_source_tab", "_row_number")}
+            metadata = {
+                "feature_id": str(row.get("Feature ID", "")),
+                "feature_name": name,
+                "row_number": row.get("_row_number"),
+                "source_file": row.get("_source_tab", "Feature_catalogue.xlsx"),
+                "full_row": full_row,
+            }
+            feature_texts.append((combined_text, metadata))
+        return feature_texts
 
     def load_from_gsheet(self) -> pd.DataFrame:
         """Pull the feature catalogue from the configured Google Sheet.
@@ -207,10 +280,18 @@ class FeatureLoader:
         return self.search_vec(self.embeddings.embed_query(query_text), k)
 
     def build_and_save(self) -> bool:
-        df = self.load_feature_sheets()
-        if df.empty:
+        # Primary: pandas-free CSV pull from the Google Sheet (memory-light, used on Render).
+        rows = self.load_from_gsheet_csv()
+        if rows:
+            texts = self.prepare_feature_texts_from_rows(rows)
+        else:
+            # Fallback (dev): pandas/Excel path — local files or the xlsx workbook.
+            df = self.load_feature_sheets()
+            if df.empty:
+                return False
+            texts = self.prepare_feature_texts(df)
+        if not texts:
             return False
-        texts = self.prepare_feature_texts(df)
         self.create_embeddings(texts)
         self.save_index()
         logger.info(f"Feature index built with {len(self.metadata)} features")
