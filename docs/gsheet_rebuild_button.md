@@ -41,30 +41,42 @@ function onOpen() {
     .addToUi();
 }
 
-// Called by the menu button: triggers a server-side rebuild from this Sheet.
+// Called by the menu button: starts a server-side rebuild, then polls for the result.
+// The server runs the rebuild in the background and returns 202 immediately, so a
+// slow (cold-start) instance can't time the request out.
 function updateChatbot() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  ss.toast('Updating chatbot… (~a few seconds)', 'Chatbot', 30);
+  ss.toast('Starting rebuild… (server may be waking up)', 'Chatbot', 30);
+  const headers = { 'X-Rebuild-Token': REBUILD_TOKEN };
 
   try {
-    const resp = UrlFetchApp.fetch(APP_URL + '/api/rebuild-catalog', {
-      method: 'post',
-      headers: { 'X-Rebuild-Token': REBUILD_TOKEN },
-      muteHttpExceptions: true,
-      // Server work (embed + git push) can take a little while; UrlFetch waits up to ~5 min.
+    // 1) Kick off the rebuild
+    const start = UrlFetchApp.fetch(APP_URL + '/api/rebuild-catalog', {
+      method: 'post', headers: headers, muteHttpExceptions: true
     });
+    const sc = start.getResponseCode();
+    if (sc === 401) { ss.toast('❌ Unauthorized — token mismatch.', 'Chatbot', 10); return; }
+    if (sc !== 202) { ss.toast('❌ Could not start: HTTP ' + sc, 'Chatbot', 10); return; }
 
-    const code = resp.getResponseCode();
-    const body = JSON.parse(resp.getContentText() || '{}');
-
-    if (code === 200 && body.status === 'rebuilt') {
-      const gitNote = body.git_writeback ? '' : '  (note: saved to live app, git push skipped)';
-      ss.toast('✅ Chatbot updated — ' + body.features + ' features live' + gitNote, 'Chatbot', 8);
-    } else if (code === 401) {
-      ss.toast('❌ Unauthorized — REBUILD_TOKEN does not match Render.', 'Chatbot', 10);
-    } else {
-      ss.toast('❌ Update failed: ' + (body.error || ('HTTP ' + code)), 'Chatbot', 10);
+    // 2) Poll status until done (rebuild is ~6s warm; allow up to ~60s)
+    for (let i = 0; i < 20; i++) {
+      Utilities.sleep(3000);
+      const r = UrlFetchApp.fetch(APP_URL + '/api/rebuild-status', {
+        method: 'get', headers: headers, muteHttpExceptions: true
+      });
+      if (r.getResponseCode() !== 200) continue;
+      const s = JSON.parse(r.getContentText() || '{}');
+      if (!s.running && s.last) {
+        if (s.last.status === 'rebuilt') {
+          const gitNote = s.last.git_writeback ? '' : '  (saved to live app; git push skipped)';
+          ss.toast('✅ Chatbot updated — ' + s.last.features + ' features live' + gitNote, 'Chatbot', 8);
+        } else {
+          ss.toast('❌ Rebuild failed: ' + (s.last.error || 'unknown'), 'Chatbot', 12);
+        }
+        return;
+      }
     }
+    ss.toast('⏳ Still rebuilding… it will finish shortly. Click again in a moment to confirm.', 'Chatbot', 10);
   } catch (e) {
     ss.toast('❌ Could not reach the server: ' + e, 'Chatbot', 10);
   }

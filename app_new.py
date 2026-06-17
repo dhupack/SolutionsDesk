@@ -475,49 +475,73 @@ def _commit_index_to_git():
         return False, f'git write-back error: {e}'
 
 
+# Background rebuild state — a synchronous rebuild can exceed gunicorn's --timeout
+# (120s) when it lands on a cold/spun-down free-tier instance, killing the worker
+# (empty-body 502). So the endpoint kicks the work to a thread and returns at once;
+# the Sheet button polls /api/rebuild-status to report the result.
+_rebuild_state = {'running': False, 'last': None}
+
+
+def _run_rebuild():
+    import gc, traceback, time as _t
+    from src.loaders.feature_loader import FeatureLoader
+    started = _t.time()
+    try:
+        loader = FeatureLoader()
+        if not loader.build_and_save():
+            raise RuntimeError('no features pulled from the Sheet')
+        feature_count = len(loader.metadata)
+        del loader
+        gc.collect()
+
+        # Reload ONLY the feature index into the existing live app (memory-light).
+        rag.tier_retrieval.initialize_feature_index()
+        gc.collect()
+
+        git_ok, git_msg = _commit_index_to_git()
+        _rebuild_state['last'] = {
+            'status': 'rebuilt', 'features': feature_count,
+            'git_writeback': git_ok, 'git_message': git_msg,
+            'took': round(_t.time() - started, 1), 'error': None,
+        }
+        app.logger.info(f"rebuild-catalog done: {_rebuild_state['last']}")
+    except Exception as e:
+        app.logger.error("rebuild-catalog failed:\n" + traceback.format_exc())
+        _rebuild_state['last'] = {'status': 'failed', 'error': str(e),
+                                  'took': round(_t.time() - started, 1)}
+    finally:
+        _rebuild_state['running'] = False
+
+
 @app.route('/api/rebuild-catalog', methods=['POST'])
 def rebuild_catalog():
-    """Pull the Google Sheet, re-embed the feature catalogue, swap it into the live
-    app, and commit the new index back to git. Triggered by the Sheet's button.
-    Protected by REBUILD_TOKEN (separate from the reload endpoint's RELOAD_TOKEN).
+    """Kick off a rebuild of the feature catalogue from the Google Sheet in the
+    background and return immediately (avoids the worker-timeout that kills a long
+    synchronous request on the free tier). Protected by REBUILD_TOKEN.
     """
+    import threading
     from config import REBUILD_TOKEN
     token = request.headers.get('X-Rebuild-Token', '')
     if not REBUILD_TOKEN or token != REBUILD_TOKEN:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    import gc
-    try:
-        # 1. Re-embed from the Google Sheet and write feature_index.faiss + metadata.
-        #    Build on a throwaway loader, then drop it so its DataFrame/embeddings are freed.
-        from src.loaders.feature_loader import FeatureLoader
-        loader = FeatureLoader()
-        if not loader.build_and_save():
-            return jsonify({'error': 'Rebuild failed — no features pulled from the Sheet'}), 502
-        feature_count = len(loader.metadata)
-        del loader
-        gc.collect()
+    if _rebuild_state['running']:
+        return jsonify({'status': 'already_running'}), 202
 
-        # 2. Reload ONLY the feature index into the existing live app (memory-light).
-        #    Avoids re-creating the whole RAGWorkflow / reloading the proposal index,
-        #    which would spike memory past the 512MB free-tier limit and crash the worker.
-        rag.tier_retrieval.initialize_feature_index()
-        gc.collect()
+    _rebuild_state['running'] = True
+    _rebuild_state['last'] = None
+    threading.Thread(target=_run_rebuild, daemon=True).start()
+    return jsonify({'status': 'started'}), 202
 
-        # 3. Persist to git so it survives restarts (best-effort)
-        git_ok, git_msg = _commit_index_to_git()
 
-        return jsonify({
-            'status': 'rebuilt',
-            'features': feature_count,
-            'feature_index': rag.tier_retrieval.feature_loader_initialized,
-            'git_writeback': git_ok,
-            'git_message': git_msg,
-        })
-    except Exception as e:
-        import traceback
-        app.logger.error("rebuild-catalog failed:\n" + traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+@app.route('/api/rebuild-status')
+def rebuild_status():
+    """Report the in-progress / last rebuild result (polled by the Sheet button)."""
+    from config import REBUILD_TOKEN
+    token = request.headers.get('X-Rebuild-Token', '')
+    if not REBUILD_TOKEN or token != REBUILD_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+    return jsonify({'running': _rebuild_state['running'], 'last': _rebuild_state['last']})
 
 
 @app.route('/api/catalog-file/<product>')
