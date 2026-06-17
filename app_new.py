@@ -4,6 +4,24 @@ import sys
 import glob
 import subprocess
 import json as _json
+
+# ── Block torch/transformers from loading (saves ~190MB RAM) ────────────────────
+# langchain_core imports `transformers` (→ torch) at startup for a fallback tokenizer
+# we never use on the OpenAI path. On Render's 512MB free tier that overhead left no
+# headroom and the catalogue rebuild OOM-killed the worker. Removing the libs from
+# requirements isn't enough (Render's cached env keeps them installed; pip never
+# uninstalls), so we block the import itself — langchain_core then falls back
+# gracefully. Remove this guard if you switch to a local sentence-transformers model.
+if os.getenv("EMBEDDING_PROVIDER", "openai") == "openai":
+    import importlib.abc as _iabc
+    class _BlockHeavyImports(_iabc.MetaPathFinder):
+        _blocked = {"torch", "transformers", "sentence_transformers"}
+        def find_spec(self, name, _path=None, _target=None):
+            if name.split(".")[0] in self._blocked:
+                raise ImportError(f"{name} disabled to save memory (OpenAI embeddings in use)")
+            return None
+    sys.meta_path.insert(0, _BlockHeavyImports())
+
 from datetime import datetime, timezone
 from flask import Flask, render_template, request, jsonify, send_file, Response, stream_with_context
 from flask_limiter import Limiter
