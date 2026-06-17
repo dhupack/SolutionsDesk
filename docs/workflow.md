@@ -3,10 +3,13 @@
 A single end-to-end view of the RAG chatbot for a non-code audience:
 
 - **Phase A — Indexing SOP** (offline): how source documents become searchable vectors (chunking strategy, embeddings, FAISS).
+- **Phase A-Live — Update catalogue from Google Sheet** (live): a one-click rebuild that re-embeds the feature catalogue from a Google Sheet, with no redeploy.
 - **Phase B — Query Workflow** (live): how a question becomes an answer (rewrite → parallel retrieval → similarity scoring → routing → generation → render).
 - **Delivery modes**: Web Chat and Online (Google Meet) mode.
 
 > Embeddings: OpenAI `text-embedding-3-large` (3072-dim) · LLM: OpenAI `gpt-4o-mini` (configurable) · Vector store: FAISS (cosine similarity).
+> Feature catalogue source: **Google Sheet** (tabs `XSWIFT_Feature_Catalogue` + `CPL_Feature_Catalogue`); local `*.xlsx` is a dev fallback.
+> Hosting: Render free tier (512 MB) — `torch`/`transformers` are blocked at startup to stay within memory.
 
 ---
 
@@ -22,8 +25,8 @@ flowchart TD
     %% ---------- Feature catalog ----------
     subgraph FEAT["A1 — Feature Catalog index"]
         direction TB
-        FA["IN: data/feature_sheet/*.xlsx<br/>sheet = 'Feature catalogue'"]:::io
-        FA --> FB["Read each row (pandas)<br/>1 row = 1 feature"]:::proc
+        FA["IN: Google Sheet (XSWIFT + CPL tabs)<br/>or data/feature_sheet/*.xlsx (dev fallback)"]:::io
+        FA --> FB["Read each row (CSV export, stdlib csv)<br/>1 row = 1 feature"]:::proc
         FB --> FC["Build text per feature:<br/>name x2 + Module + Bucket +<br/>What it does + Business Value +<br/>Sales Talking Point + Dependencies"]:::proc
         FC --> FD["Embed → text-embedding-3-large<br/>(3072-dim vector)"]:::proc
         FD --> FE["normalize_L2 → FAISS IndexFlatIP<br/>(inner product = cosine)"]:::proc
@@ -50,6 +53,40 @@ flowchart TD
         PEMB --> POUT["OUT: proposal_index.faiss +<br/>proposal_metadata.json<br/>(client, file, industry, page_ref,<br/>chunk_index, word_count, content)"]:::out
     end
 ```
+
+---
+
+## 1-Live. Update catalogue from Google Sheet (one click, no redeploy)
+
+The feature catalogue lives in a **Google Sheet** (tabs `XSWIFT_Feature_Catalogue` + `CPL_Feature_Catalogue`). A non-developer adds or edits rows, clicks one button in the Sheet, and the **live** chatbot re-embeds the whole catalogue — no git, no laptop, no manual `setup.py`. (Setup steps + the Apps Script live in [`docs/gsheet_rebuild_button.md`](gsheet_rebuild_button.md).)
+
+```mermaid
+flowchart TD
+    classDef io fill:#eef2ff,stroke:#6366f1,color:#1e1b4b;
+    classDef proc fill:#ffffff,stroke:#475569,color:#0f172a;
+    classDef case fill:#fffbeb,stroke:#f59e0b,color:#92400e;
+    classDef out fill:#ecfdf5,stroke:#10b981,color:#065f46;
+    classDef err fill:#fef2f2,stroke:#ef4444,color:#991b1b;
+
+    G["Editor adds / edits rows in Google Sheet<br/>(XSWIFT + CPL tabs)"]:::io
+    G --> BTN["Clicks '🔄 Update chatbot'<br/>(Apps Script menu button)"]:::proc
+    BTN --> POST["POST /api/rebuild-catalog<br/>header: X-Rebuild-Token"]:::proc
+    POST --> AUTH{"token matches<br/>REBUILD_TOKEN?"}:::case
+    AUTH -->|no| E401["OUT: 401 Unauthorized"]:::err
+    AUTH -->|yes| BG["Start rebuild in background thread<br/>→ return 202 immediately<br/>(avoids worker timeout)"]:::out
+
+    BG --> PULL["Pull both tabs via CSV export (per-tab gid)<br/>stdlib csv — no pandas/torch (512MB safe)"]:::proc
+    PULL --> EMB["Embed 122 rows → text-embedding-3-large<br/>→ normalize_L2 → IndexFlatIP (~7s)"]:::proc
+    EMB --> SAVE["Write feature_index.faiss +<br/>feature_metadata.json"]:::proc
+    SAVE --> SWAP["Reload feature index into the live app<br/>(in memory — next query uses it)"]:::out
+    SWAP --> GIT{"index changed<br/>vs committed?"}:::case
+    GIT -->|yes| PUSH["git commit + push to GitHub<br/>→ auto-deploy bakes it in<br/>(survives Render restart)"]:::out
+    GIT -->|no| NOOP["skip push<br/>('No index changes to commit')"]:::proc
+
+    BTN -.->|"polls every 3s"| STAT["GET /api/rebuild-status<br/>→ toast '✅ 122 features live'"]:::proc
+```
+
+> **Why background + CSV (not a blocking pandas read):** a synchronous rebuild on the 512 MB free tier could exceed gunicorn's 120 s timeout (cold start) and OOM the worker. So the request returns `202` at once and the work runs in a thread; the catalogue is pulled as CSV (no pandas) and `torch`/`transformers` are blocked at startup — together these keep the rebuild well under 512 MB. **Edits and additions both apply** (the whole catalogue is re-embedded). Click *after* finishing a row — the button never fires on its own, so partial rows are never embedded.
 
 ---
 
@@ -97,7 +134,7 @@ flowchart TD
     PARSE -->|yes| BJ["json_to_blocks → structured cards"]:::proc
     PARSE -->|"no (plain text)"| BT["text_to_blocks → fallback cards"]:::proc
 
-    BJ --> CLR["Color citations + attach source links<br/>green = feature · blue = proposal · amber = AI"]:::proc
+    BJ --> CLR["Color citations + attach source links<br/>green = feature (→ Google Sheet tab) ·<br/>blue = proposal (→ doc) · amber = AI"]:::proc
     BT --> CLR
     CLR --> RESP["OUT: 200 JSON {badge, blocks}"]:::out
     GEN -.->|"any exception"| E500["OUT: 500 error"]:::err
@@ -204,5 +241,7 @@ Roughly **16× more expensive** than `gpt-4o-mini`, in exchange for higher answe
 
 Only when content changes and everything is re-embedded:
 122 features (~15K tokens) + 413 chunks (~165K tokens) ≈ **180K tokens** × $0.13/1M ≈ **$0.02 per full rebuild** (~2 cents). Negligible.
+
+A feature-only rebuild (the Google Sheet "🔄 Update chatbot" button) re-embeds just the 122 features (~15K tokens) ≈ **$0.002 per click** (~0.2 cents). Identical re-clicks still re-embed but skip the git push (no change to commit).
 
 > **Caveat:** token counts are estimates; the "generate" prompt size varies with how long the feature descriptions and proposal chunks are, so real cost can swing ±30–50%. OpenAI's dashboard shows exact usage.
