@@ -110,8 +110,8 @@ FEATURE_SHEET_TAB_GID = {
 # server commit the freshly built index back to the repo so it survives restarts.
 REBUILD_TOKEN = os.getenv("REBUILD_TOKEN", "")
 GITHUB_TOKEN  = os.getenv("GITHUB_TOKEN", "")
-# owner/repo for the authenticated push URL; auto-detected from `git remote` if empty.
-GITHUB_REPO   = os.getenv("GITHUB_REPO", "")
+# owner/repo for the authenticated push URL; falls back to `git remote` if unset.
+GITHUB_REPO   = os.getenv("GITHUB_REPO", "dhupack/SolutionsDesk")
 
 # Feature Excel
 FEATURE_SHEET_NAME = "Feature catalogue"

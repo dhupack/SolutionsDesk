@@ -462,6 +462,11 @@ def _commit_index_to_git():
             return subprocess.run(['git', *args], cwd=os.path.dirname(os.path.abspath(__file__)),
                                   capture_output=True, text=True, timeout=60)
 
+        # Render's runtime may ship the code without a .git directory. If so we can't push.
+        inside = git('rev-parse', '--is-inside-work-tree')
+        if inside.returncode != 0 or 'true' not in (inside.stdout or ''):
+            return False, 'runtime is not a git checkout — cannot push (index live in memory only)'
+
         # Identify the committer (CI-style identity)
         git('config', 'user.email', 'bot@solutionsdesk.local')
         git('config', 'user.name', 'SolutionsDesk Rebuild Bot')
