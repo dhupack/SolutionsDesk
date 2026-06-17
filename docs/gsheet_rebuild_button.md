@@ -38,7 +38,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Chatbot')
     .addItem('🔄 Update chatbot', 'updateChatbot')
-    .addToUI();
+    .addToUi();
 }
 
 // Called by the menu button: triggers a server-side rebuild from this Sheet.

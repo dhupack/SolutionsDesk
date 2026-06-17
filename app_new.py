@@ -486,19 +486,23 @@ def rebuild_catalog():
     if not REBUILD_TOKEN or token != REBUILD_TOKEN:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    global rag, _rag_ready
+    import gc
     try:
-        # 1. Re-embed from the Google Sheet and write feature_index.faiss + metadata
+        # 1. Re-embed from the Google Sheet and write feature_index.faiss + metadata.
+        #    Build on a throwaway loader, then drop it so its DataFrame/embeddings are freed.
         from src.loaders.feature_loader import FeatureLoader
         loader = FeatureLoader()
         if not loader.build_and_save():
             return jsonify({'error': 'Rebuild failed — no features pulled from the Sheet'}), 502
         feature_count = len(loader.metadata)
+        del loader
+        gc.collect()
 
-        # 2. Swap the new index into the live app (in-memory), like reload does
-        rag = RAGWorkflow()
-        _rag_ready = rag.initialize_tier_retrieval()
-        rag.build_graph()
+        # 2. Reload ONLY the feature index into the existing live app (memory-light).
+        #    Avoids re-creating the whole RAGWorkflow / reloading the proposal index,
+        #    which would spike memory past the 512MB free-tier limit and crash the worker.
+        rag.tier_retrieval.initialize_feature_index()
+        gc.collect()
 
         # 3. Persist to git so it survives restarts (best-effort)
         git_ok, git_msg = _commit_index_to_git()
@@ -511,6 +515,8 @@ def rebuild_catalog():
             'git_message': git_msg,
         })
     except Exception as e:
+        import traceback
+        app.logger.error("rebuild-catalog failed:\n" + traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
