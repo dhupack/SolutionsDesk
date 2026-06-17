@@ -73,6 +73,39 @@ EXTRACTION_METADATA_PATH = DATA_DIR / "extraction_metadata.json"
 CHECKPOINT_DIR = CONVERSATIONS_DIR
 MAX_CONVERSATION_HISTORY = 10
 
+# ── Feature catalogue source: Google Sheet (production) ─────────────────────────
+# When FEATURE_SHEET_GSHEET_ID is set, the feature index is (re)built by pulling
+# this Google Sheet's tabs instead of the local Excel files. The Sheet must be
+# shared "Anyone with the link → Viewer" so the server can download it unauthenticated.
+# The whole workbook is fetched once as .xlsx (export?format=xlsx) and every tab is
+# read by name — this is reliable, unlike Google's per-tab CSV export which silently
+# falls back to the first tab.
+FEATURE_SHEET_GSHEET_ID = os.getenv("FEATURE_SHEET_GSHEET_ID", "1XguMyC67fsc73Ujpv2YDOFApE6Ztt6klTMbMUgrOJ1s")
+# Tabs to read from the workbook. Empty/None means "read every tab".
+FEATURE_SHEET_TABS = ["XSWIFT_Feature_Catalogue", "CPL_Feature_Catalogue"]
+FEATURE_SHEET_XLSX_URL = (
+    f"https://docs.google.com/spreadsheets/d/{FEATURE_SHEET_GSHEET_ID}/export?format=xlsx"
+    if FEATURE_SHEET_GSHEET_ID else ""
+)
+# Public Sheet URL for citation "view source" links (option a). Per-tab gids are
+# filled in once read off each tab's URL; falls back to the workbook URL if unknown.
+FEATURE_SHEET_VIEW_URL = (
+    f"https://docs.google.com/spreadsheets/d/{FEATURE_SHEET_GSHEET_ID}/edit"
+    if FEATURE_SHEET_GSHEET_ID else ""
+)
+FEATURE_SHEET_TAB_GID = {
+    "XSWIFT": os.getenv("FEATURE_SHEET_XSWIFT_GID", "0"),           # XSWIFT_Feature_Catalogue tab
+    "CPL":    os.getenv("FEATURE_SHEET_CPL_GID", "1728231193"),     # CPL_Feature_Catalogue tab
+}
+
+# ── Rebuild endpoint + git write-back (option 2) ────────────────────────────────
+# REBUILD_TOKEN protects POST /api/rebuild-catalog. GITHUB_TOKEN lets the running
+# server commit the freshly built index back to the repo so it survives restarts.
+REBUILD_TOKEN = os.getenv("REBUILD_TOKEN", "")
+GITHUB_TOKEN  = os.getenv("GITHUB_TOKEN", "")
+# owner/repo for the authenticated push URL; auto-detected from `git remote` if empty.
+GITHUB_REPO   = os.getenv("GITHUB_REPO", "")
+
 # Feature Excel
 FEATURE_SHEET_NAME = "Feature catalogue"
 FEATURE_COLUMNS = [

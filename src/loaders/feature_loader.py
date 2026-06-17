@@ -16,6 +16,8 @@ from config import (
     FEATURE_COLUMNS,
     FEATURE_FAISS_INDEX_PATH,
     FEATURE_METADATA_PATH,
+    FEATURE_SHEET_XLSX_URL,
+    FEATURE_SHEET_TABS,
     get_embeddings,
 )
 
@@ -38,8 +40,54 @@ class FeatureLoader:
                 return sheet
         return None
 
+    def load_from_gsheet(self) -> pd.DataFrame:
+        """Pull the feature catalogue from the configured Google Sheet.
+
+        Downloads the whole workbook once as .xlsx (export?format=xlsx) and reads
+        the configured tabs by name. Returns an empty DataFrame on any failure so
+        the caller can fall back to the committed/local index.
+        """
+        import pandas as pd
+        from io import BytesIO
+        import urllib.request
+
+        if not FEATURE_SHEET_XLSX_URL:
+            return pd.DataFrame()
+        try:
+            logger.info(f"Pulling feature catalogue from Google Sheet: {FEATURE_SHEET_XLSX_URL}")
+            req = urllib.request.Request(FEATURE_SHEET_XLSX_URL, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                content = resp.read()
+            all_tabs = pd.read_excel(BytesIO(content), sheet_name=None)  # {tab_name: df}
+        except Exception as e:
+            logger.error(f"Failed to pull Google Sheet: {e}")
+            return pd.DataFrame()
+
+        wanted = FEATURE_SHEET_TABS or list(all_tabs.keys())
+        dfs = []
+        for tab in wanted:
+            df = all_tabs.get(tab)
+            if df is None:
+                logger.warning(f"Tab '{tab}' not found in workbook (have: {list(all_tabs.keys())}), skipping")
+                continue
+            df = df.dropna(how="all")
+            df["_source_tab"] = tab            # keep provenance for citations
+            logger.info(f"Pulled {len(df)} features from tab '{tab}'")
+            dfs.append(df)
+
+        if not dfs:
+            return pd.DataFrame()
+        combined = pd.concat(dfs, ignore_index=True)
+        self.features_df = combined
+        return combined
+
     def load_feature_sheets(self) -> pd.DataFrame:
         import pandas as pd
+        # Production source of truth is the Google Sheet; fall back to local Excel.
+        gsheet_df = self.load_from_gsheet()
+        if not gsheet_df.empty:
+            return gsheet_df
+
         excel_files = list(FEATURE_SHEET_DIR.glob("*.xlsx")) + list(FEATURE_SHEET_DIR.glob("*.xls"))
         if not excel_files:
             logger.warning(f"No Excel files found in {FEATURE_SHEET_DIR}")
@@ -91,12 +139,15 @@ class FeatureLoader:
                 f"Requires: {deps}."
             )
 
+            source_tab = get("_source_tab") or "Feature_catalogue.xlsx"
+            full_row = row.to_dict()
+            full_row.pop("_source_tab", None)   # internal provenance column, not catalogue data
             metadata = {
                 "feature_id": str(row.get("Feature ID", "")),
                 "feature_name": name,
                 "row_number": idx + 2,
-                "source_file": "Feature_catalogue.xlsx",
-                "full_row": row.to_dict()
+                "source_file": source_tab,
+                "full_row": full_row
             }
             feature_texts.append((combined_text, metadata))
         return feature_texts

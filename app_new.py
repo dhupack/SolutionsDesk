@@ -46,6 +46,17 @@ def _split_points(text: str) -> list:
     return [p.strip().rstrip('.') for p in parts if len(p.strip()) > 2]
 
 
+def _feature_source_href(prod: str) -> str:
+    """Citation 'view source' link for a feature (option a): open the live Google
+    Sheet at the product's tab. Falls back to the downloadable catalog file when
+    the Sheet's per-tab gid isn't configured."""
+    from config import FEATURE_SHEET_VIEW_URL, FEATURE_SHEET_TAB_GID
+    gid = (FEATURE_SHEET_TAB_GID or {}).get(prod, "")
+    if FEATURE_SHEET_VIEW_URL and gid:
+        return f"{FEATURE_SHEET_VIEW_URL}#gid={gid}"
+    return f"/api/catalog-file/{prod}"
+
+
 def _solution_item(s: dict) -> dict:
     """A recommended-solution card: bold feature name + bullet points.
     Feature-backed → green + catalog link; else LLM → amber."""
@@ -56,7 +67,7 @@ def _solution_item(s: dict) -> dict:
               if isinstance(pts, list) and pts else _split_points(s.get("description", "")))
     prod = (s.get("product") or "").strip().upper()
     if s.get("id") and prod in ("XSWIFT", "CPL"):
-        return {"text": name, "points": points, "src": "feature", "href": f"/api/catalog-file/{prod}", "ref": prod}
+        return {"text": name, "points": points, "src": "feature", "href": _feature_source_href(prod), "ref": prod}
     return {"text": name, "points": points, "src": "llm", "href": "", "ref": "Model Knowledge"}
 
 
@@ -119,7 +130,7 @@ def _json_to_blocks(data: dict, badge) -> dict:
         # Single-feature detail view → one green block linked to its product
         feat = data["feature"]
         prod = (feat.get("product") or "").strip().upper()
-        href = f"/api/catalog-file/{prod}" if prod in ("XSWIFT", "CPL") else ""
+        href = _feature_source_href(prod) if prod in ("XSWIFT", "CPL") else ""
         detail_items = []
         for label, key in [("What it does", "what_it_does"), ("Business Value", "business_value"),
                            ("Dependencies", "dependencies"), ("Sales Talking Point", "sales_pitch")]:
@@ -413,6 +424,91 @@ def reload_catalog():
             'status': 'reloaded',
             'feature_index': rag.tier_retrieval.feature_loader_initialized,
             'proposal_index': rag.tier_retrieval.proposal_loader_initialized,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+def _commit_index_to_git():
+    """Commit the freshly built feature index back to the repo so it survives
+    Render restarts (option 2). Returns (ok, message). Best-effort: a push failure
+    does NOT fail the rebuild — the index is already live in memory either way.
+    """
+    from config import GITHUB_TOKEN, GITHUB_REPO
+    index_files = ['embeddings/feature_index.faiss', 'embeddings/feature_metadata.json']
+    try:
+        if not GITHUB_TOKEN:
+            return False, 'GITHUB_TOKEN not set — skipped git push (index is live in memory only)'
+
+        def git(*args):
+            return subprocess.run(['git', *args], cwd=os.path.dirname(os.path.abspath(__file__)),
+                                  capture_output=True, text=True, timeout=60)
+
+        # Identify the committer (CI-style identity)
+        git('config', 'user.email', 'bot@solutionsdesk.local')
+        git('config', 'user.name', 'SolutionsDesk Rebuild Bot')
+
+        # Resolve owner/repo for the authenticated push URL
+        repo = GITHUB_REPO
+        if not repo:
+            r = git('remote', 'get-url', 'origin')
+            m = re.search(r'github\.com[:/]+([^/]+/[^/.]+)', r.stdout or '')
+            repo = m.group(1) if m else ''
+        if not repo:
+            return False, 'Could not determine GitHub repo for push'
+
+        git('add', *index_files)
+        # Nothing changed? (rebuild produced an identical index) → no-op success
+        if git('diff', '--cached', '--quiet').returncode == 0:
+            return True, 'No index changes to commit'
+
+        ts = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+        git('commit', '-m', f'Auto-rebuild feature index from Google Sheet ({ts})')
+        push_url = f'https://x-access-token:{GITHUB_TOKEN}@github.com/{repo}.git'
+        branch = os.getenv('GITHUB_BRANCH', 'main')
+        # Render deploys often run on a detached HEAD, so push HEAD explicitly to the branch.
+        p = git('push', push_url, f'HEAD:{branch}')
+        if p.returncode != 0:
+            return False, f'git push failed: {(p.stderr or p.stdout).strip()[:300]}'
+        return True, 'Index committed and pushed'
+    except Exception as e:
+        return False, f'git write-back error: {e}'
+
+
+@app.route('/api/rebuild-catalog', methods=['POST'])
+def rebuild_catalog():
+    """Pull the Google Sheet, re-embed the feature catalogue, swap it into the live
+    app, and commit the new index back to git. Triggered by the Sheet's button.
+    Protected by REBUILD_TOKEN (separate from the reload endpoint's RELOAD_TOKEN).
+    """
+    from config import REBUILD_TOKEN
+    token = request.headers.get('X-Rebuild-Token', '')
+    if not REBUILD_TOKEN or token != REBUILD_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    global rag, _rag_ready
+    try:
+        # 1. Re-embed from the Google Sheet and write feature_index.faiss + metadata
+        from src.loaders.feature_loader import FeatureLoader
+        loader = FeatureLoader()
+        if not loader.build_and_save():
+            return jsonify({'error': 'Rebuild failed — no features pulled from the Sheet'}), 502
+        feature_count = len(loader.metadata)
+
+        # 2. Swap the new index into the live app (in-memory), like reload does
+        rag = RAGWorkflow()
+        _rag_ready = rag.initialize_tier_retrieval()
+        rag.build_graph()
+
+        # 3. Persist to git so it survives restarts (best-effort)
+        git_ok, git_msg = _commit_index_to_git()
+
+        return jsonify({
+            'status': 'rebuilt',
+            'features': feature_count,
+            'feature_index': rag.tier_retrieval.feature_loader_initialized,
+            'git_writeback': git_ok,
+            'git_message': git_msg,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

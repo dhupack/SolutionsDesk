@@ -27,3 +27,9 @@ services:
         sync: false
       - key: RELOAD_TOKEN         # protects /api/reload-catalog
         sync: false
+      - key: REBUILD_TOKEN        # protects /api/rebuild-catalog (the Google Sheet "Update chatbot" button)
+        sync: false
+      - key: GITHUB_TOKEN         # fine-grained PAT (Contents: read/write) so the server commits the rebuilt index back to git
+        sync: false
+      - key: FEATURE_SHEET_GSHEET_ID   # Google Sheet that holds the feature catalogue (XSWIFT + CPL tabs)
+        value: 1XguMyC67fsc73Ujpv2YDOFApE6Ztt6klTMbMUgrOJ1s
