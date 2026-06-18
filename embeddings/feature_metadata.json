@@ -1038,36 +1038,19 @@
   },
   {
     "feature_id": "62",
-    "feature_name": "Weather-Risk Route Advisory",
+    "feature_name": "Admin Module",
     "row_number": 63,
     "source_file": "XSWIFT_Feature_Catalogue",
     "full_row": {
       "Feature ID": "62",
-      "Feature Name": "Weather-Risk Route Advisory",
-      "Bucket": "AI",
-      "Feature Type": "AI",
-      "Module / Area": "Route Intelligence / Risk Advisory",
-      "What it does": "Overlays real-time and forecasted weather (fog, heavy rain, cyclone, heatwave, hailstorm) along the planned/probable route and flags high-risk stretches with recommended speed/halt advisories.",
-      "Business Value / Impact": "Reduces weather-related accidents and delays, enables proactive rescheduling, protects perishable/sensitive cargo, supports insurance/claims defense with documented risk warnings.",
-      "Dependencies / Inputs": "Weather API/IMD feed, route/corridor data, vehicle location, cargo type master",
-      "Sales Talking Point": "Use after a route deviation or delay demo to show \"what if\" foresight \u2014 e.g., a truck warned of fog 40km ahead and held at a safe halt instead of pushing through. Strong tie-in with safety (ADAS/DMS) and SLA/delay dashboards, since weather is currently absent from the entire feature sheet despite being a major real-world cause of accidents, detentions, and delivery delays."
-    }
-  },
-  {
-    "feature_id": "63",
-    "feature_name": "",
-    "row_number": 64,
-    "source_file": "XSWIFT_Feature_Catalogue",
-    "full_row": {
-      "Feature ID": "63",
-      "Feature Name": "",
-      "Bucket": "",
-      "Feature Type": "",
-      "Module / Area": "",
-      "What it does": "",
-      "Business Value / Impact": "",
-      "Dependencies / Inputs": "",
-      "Sales Talking Point": ""
+      "Feature Name": "Admin Module",
+      "Bucket": "Other",
+      "Feature Type": "Value Add",
+      "Module / Area": "Visibility Dashboard",
+      "What it does": "Provides visibility on the admin vehicles, helps to automate the monthly billing on Kms travelled",
+      "Business Value / Impact": "Visibility, faster payment processing without dispute, Prevent the cost leakages",
+      "Dependencies / Inputs": "Daily?Monthly roaster upload",
+      "Sales Talking Point": "Pitch it for Admin vehicle monitoring and digitization of payments based on kms travelled."
     }
   },
   {
