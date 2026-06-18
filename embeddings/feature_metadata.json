@@ -1037,6 +1037,23 @@
     }
   },
   {
+    "feature_id": "",
+    "feature_name": "Weather-Risk Route Advisory",
+    "row_number": 63,
+    "source_file": "XSWIFT_Feature_Catalogue",
+    "full_row": {
+      "Feature ID": "",
+      "Feature Name": "Weather-Risk Route Advisory",
+      "Bucket": "AI",
+      "Feature Type": "AI",
+      "Module / Area": "Route Intelligence / Risk Advisory",
+      "What it does": "Overlays real-time and forecasted weather (fog, heavy rain, cyclone, heatwave, hailstorm) along the planned/probable route and flags high-risk stretches with recommended speed/halt advisories.",
+      "Business Value / Impact": "Reduces weather-related accidents and delays, enables proactive rescheduling, protects perishable/sensitive cargo, supports insurance/claims defense with documented risk warnings.",
+      "Dependencies / Inputs": "Weather API/IMD feed, route/corridor data, vehicle location, cargo type master",
+      "Sales Talking Point": "Use after a route deviation or delay demo to show \"what if\" foresight \u2014 e.g., a truck warned of fog 40km ahead and held at a safe halt instead of pushing through. Strong tie-in with safety (ADAS/DMS) and SLA/delay dashboards, since weather is currently absent from the entire feature sheet despite being a major real-world cause of accidents, detentions, and delivery delays."
+    }
+  },
+  {
     "feature_id": "1",
     "feature_name": "CPL / CPoL Summary Dashboard",
     "row_number": 2,
