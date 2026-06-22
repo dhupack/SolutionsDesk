@@ -151,7 +151,10 @@ class RAGWorkflow:
 
         feature_results = (self.tier_retrieval.feature_loader.search_vec(query_vec, k=15)
                            if feat_init else [])
-        proposal_results = (self.tier_retrieval.proposal_loader.search_vec(query_vec, k=5)
+        # Grouped search: top-k match, then roll up sibling sections that share a
+        # parent (e.g. all 2.2.x features) so umbrella questions get the whole
+        # section, not just the one fragment that matched.
+        proposal_results = (self.tier_retrieval.proposal_loader.search_vec_grouped(query_vec, k=5)
                             if prop_init else [])
 
         # Build feature context
@@ -190,10 +193,12 @@ class RAGWorkflow:
                 industry = r['metadata'].get('industry', '')
                 filename = r['metadata'].get('filename', '')
                 page_ref = r['metadata'].get('page_ref', '')
+                section  = r['metadata'].get('breadcrumb', '') or r['metadata'].get('section_title', '')
                 content  = r['metadata'].get('content', '')[:600]
                 page_part = f" | Page: {page_ref}" if page_ref else ""
+                sect_part = f" | Section: {section}" if section else ""
                 proposal_context += (
-                    f"\n[Client: {client} | Industry: {industry} | Score: {score:.0%} | File: {filename}{page_part}]\n"
+                    f"\n[Client: {client} | Industry: {industry} | Score: {score:.0%} | File: {filename}{sect_part}{page_part}]\n"
                     f"{content}\n"
                 )
 
