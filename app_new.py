@@ -701,7 +701,11 @@ def feedback():
 
 # Biases Whisper toward Axestrack/logistics vocabulary so it stops substituting
 # common words (e.g. "overspeeding" → "oversteering"). Whisper uses this as a hint
-# of the expected terms/style (max ~224 tokens).
+# of the expected terms/style (max ~224 tokens). NOTE: keep this vocabulary-only —
+# do NOT add a "this is English/Hindi" sentence. Such a language hint over-biases the
+# realtime model and makes it transcribe English speech in Hindi/Devanagari script.
+# Language is left to per-utterance auto-detection, which handles English, Hindi
+# (Devanagari) and Hinglish (Roman) correctly on its own.
 WHISPER_PROMPT = (
     "Axestrack fleet and logistics software. Likely terms: overspeeding, over-speeding, "
     "GPS tracking, real-time vehicle tracking, geofencing, ePOD, electronic proof of delivery, "
@@ -722,7 +726,10 @@ def transcribe():
     f = request.files.get('audio')
     if f is None:
         return jsonify({'error': 'no audio uploaded'}), 400
-    model = os.getenv('OPENAI_WHISPER_MODEL', 'whisper-1')
+    # gpt-4o-transcribe is markedly more accurate than the legacy whisper-1
+    # (better with accents and the logistics jargon below). Same endpoint/params;
+    # override with OPENAI_WHISPER_MODEL if you want whisper-1 or the mini variant.
+    model = os.getenv('OPENAI_WHISPER_MODEL', 'gpt-4o-transcribe')
     lang = (request.form.get('lang') or '').strip()  # 'en' | 'hi' | ''
     data = {'model': model, 'prompt': WHISPER_PROMPT}
     if lang:
@@ -738,6 +745,71 @@ def transcribe():
         return jsonify({'text': (r.json().get('text') or '').strip()})
     except httpx.HTTPStatusError as e:
         return jsonify({'error': f'whisper {e.response.status_code}: {e.response.text[:200]}'}), 502
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/realtime-token', methods=['POST'])
+def realtime_token():
+    """Mint a short-lived OpenAI Realtime ephemeral token for live transcription.
+
+    The floating window streams audio straight to OpenAI's Realtime WebSocket for
+    word-by-word transcription. The real OPENAI_API_KEY must never ship inside the
+    .exe, so this server endpoint mints a scoped, ~1-minute ephemeral token (a quick
+    REST call — it holds no long-lived connection, so it's safe for the single-worker
+    Render setup). The client then opens the WebSocket directly with that token.
+    """
+    import httpx
+    key = os.getenv('OPENAI_API_KEY', '')
+    if not key:
+        return jsonify({'error': 'OPENAI_API_KEY not set on server'}), 500
+    model = os.getenv('OPENAI_REALTIME_MODEL', 'gpt-4o-transcribe')
+    # Transcription-only session: no model responses, just text from audio.
+    #
+    # We keep the vocabulary prompt (it biases jargon like "overspeeding"/"ePOD" so the
+    # transcript — and therefore the RAG answer — is cleaner). The downside is that on
+    # silence/noise the realtime model can hallucinate and echo the prompt; we suppress
+    # that two ways: (a) a higher VAD threshold + noise reduction so silence never opens
+    # a "turn", and (b) the client drops any line that looks like a prompt echo (we send
+    # WHISPER_PROMPT back so it can compare).
+    # Accuracy-first config: NO noise_reduction and a default-ish VAD threshold.
+    # (near_field noise reduction smears call audio, and a high threshold clips word
+    # onsets — both hurt recognition.) Hallucinations on silence are handled cheaply on
+    # the client instead (it drops prompt echoes and non-English/Hindi scripts).
+    body = {
+        'session': {
+            'type': 'transcription',
+            'audio': {
+                'input': {
+                    'format': {'type': 'audio/pcm', 'rate': 24000},
+                    'transcription': {'model': model, 'prompt': WHISPER_PROMPT},
+                    'turn_detection': {
+                        'type': 'server_vad',
+                        'threshold': 0.5,
+                        'prefix_padding_ms': 300,
+                        'silence_duration_ms': 500,
+                    },
+                },
+            },
+        },
+    }
+    try:
+        r = httpx.post(
+            'https://api.openai.com/v1/realtime/client_secrets',
+            headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
+            json=body, timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        # Token lives at the response root ("value"); older shapes nest it under client_secret.
+        token = data.get('value') or (data.get('client_secret') or {}).get('value')
+        if not token:
+            return jsonify({'error': f'no token in response: {str(data)[:200]}'}), 502
+        # Send the prompt back so the client can drop any line that echoes it.
+        return jsonify({'token': token, 'expires_at': data.get('expires_at'),
+                        'prompt': WHISPER_PROMPT})
+    except httpx.HTTPStatusError as e:
+        return jsonify({'error': f'client_secrets {e.response.status_code}: {e.response.text[:300]}'}), 502
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

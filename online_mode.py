@@ -1,12 +1,20 @@
 """
-Online Mode — voice input + always-on-top floating window.
+Online Mode — always-on voice listening + a floating window that is HIDDEN from
+screen sharing.
 
 Flow:
-    click ▶ Start  -> record your mic AND the call audio (system output, via loopback)
-    click ■ Stop   -> mix both sides, upload to the backend's /api/transcribe (Whisper)
-                   -> transcript shown in the window
-    click "Send to RAG" -> POST the transcript to /api/chat/stream
-                   -> colored answer streams into the window
+    The window starts listening to the call audio the moment it opens (no Start/Stop).
+    As people speak, their words appear live in the TRANSCRIPT box (each finished
+    sentence is sent to the backend's /api/transcribe — Whisper — and appended).
+    Press ENTER (or click "Send to RAG") -> the current transcript is sent to
+    /api/chat/stream and the colored answer streams into the ANSWER box, then the
+    transcript clears so it's ready for the next question.
+
+Screen-share privacy:
+    On Windows 10 (2004+) / 11 the window calls SetWindowDisplayAffinity with
+    WDA_EXCLUDEFROMCAPTURE, so it stays visible on your physical monitor but is
+    excluded from ALL screen capture — full-screen share, single-window share, and
+    screenshots. It will NOT appear in Google Meet / Zoom / Teams screen shares.
 
 Connects to the backend at SOLUTIONSDESK_BACKEND / backend.txt / DEFAULT_BACKEND
 (see Config below). Transcription and the OpenAI key live on the server, so this
@@ -14,23 +22,26 @@ client needs no API key. Normally started by the web UI ("MODES → Online · �
 but can also be run directly:  python online_mode.py
 """
 
+import base64
+import ctypes
 import html as _html
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 
 import httpx
+import websocket   # websocket-client — live OpenAI Realtime transcription
 import numpy as np
 import soundcard as sc
-import soundfile as sf
 from dotenv import load_dotenv
 
-from PyQt6.QtCore import Qt, QObject, pyqtSignal
+from PyQt6.QtCore import Qt, QObject, QTimer, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
     QTextEdit, QFrame,
@@ -72,10 +83,18 @@ def _resolve_backend() -> str:
 
 BACKEND_URL    = _resolve_backend()
 RAG_STREAM_URL = f"{BACKEND_URL}/api/chat/stream"
-TRANSCRIBE_URL = f"{BACKEND_URL}/api/transcribe"
+TOKEN_URL      = f"{BACKEND_URL}/api/realtime-token"
 API_KEY        = os.getenv("SOLUTIONSDESK_API_KEY", "").strip()   # optional; sent if set
-REC_SR         = 48000          # capture rate; Whisper handles it fine
 SINGLETON_PORT = 49222          # single-instance lock (prevents duplicate windows)
+
+# ── Live (streaming) transcription ───────────────────────────────────────────────
+# We stream the call audio straight to OpenAI's Realtime API over a WebSocket and
+# receive words as they're spoken. The real OpenAI key never ships in the .exe: the
+# backend mints a short-lived ephemeral token (carrying the model/prompt/VAD config),
+# and we connect directly with that. Audio must be 24 kHz mono PCM16.
+REALTIME_WS_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
+STREAM_SR       = 24000             # OpenAI Realtime expects 24 kHz PCM16
+STREAM_BLOCK    = STREAM_SR // 10   # send audio in 0.1s chunks
 
 
 def _auth_headers() -> dict:
@@ -85,79 +104,174 @@ def _auth_headers() -> dict:
 
 # ── Thread → UI signal bridge ───────────────────────────────────────────────────
 class Bridge(QObject):
-    transcribed = pyqtSignal(str)   # worker → UI: transcription finished
-    answer      = pyqtSignal(str)
-    status      = pyqtSignal(str)
+    transcript = pyqtSignal(str)    # engine → UI: full current transcript (committed + live)
+    answer     = pyqtSignal(str)
+    status     = pyqtSignal(str)
 
 
 bridge = Bridge()
-_captured = ""                  # the transcript that "Send to RAG" will use
-_capture_both = True            # True = mic + call audio (loopback); False = mic only
 
-# ── Audio recorder: your mic + system output (the call audio), mixed ────────────
-_recording   = False
-_mic_buf     = []               # frames from your microphone
-_loop_buf    = []               # frames from system output (client / call audio)
-_mic_thread  = None
-_loop_thread = None
+# ── Live transcript state ────────────────────────────────────────────────────────
+# _committed = finalized utterances; _partial = the in-progress words currently
+# streaming in. The displayed transcript (and what Enter sends) is committed + partial.
+_committed   = ""
+_partial     = ""
+_text_lock   = threading.Lock()
+_listening   = True             # master switch; False fully stops the stream
+_paused      = False            # user can pause/resume without dropping the connection
+_prompt_words: set = set()      # words from the biasing prompt — used to spot echoes
 
 
-def _record_into(make_recorder, buf):
-    """Run a soundcard recorder, appending 0.1s blocks to buf until recording stops."""
+# ── Hallucination filters ────────────────────────────────────────────────────────
+# On silence/noise the realtime model can hallucinate: it either echoes the biasing
+# prompt verbatim, or emits text in random languages. We keep only English (Latin)
+# and Hindi (Devanagari), and drop any line that looks like a prompt echo.
+_FOREIGN_RANGES = (
+    (0x0400, 0x04FF),   # Cyrillic
+    (0x0600, 0x06FF),   # Arabic
+    (0x3040, 0x30FF),   # Hiragana / Katakana
+    (0x1100, 0x11FF),   # Hangul Jamo
+    (0xAC00, 0xD7A3),   # Hangul syllables
+    (0x4E00, 0x9FFF),   # CJK
+)
+
+
+def _has_foreign_script(text: str) -> bool:
+    """True if the text contains scripts other than Latin/Devanagari (a hallucination)."""
+    for ch in text:
+        o = ord(ch)
+        if any(lo <= o <= hi for lo, hi in _FOREIGN_RANGES):
+            return True
+    return False
+
+
+def _is_prompt_echo(text: str) -> bool:
+    """True if the line is mostly words from the biasing prompt (a leaked prompt echo)."""
+    if not _prompt_words:
+        return False
+    words = re.findall(r"[a-z]+", text.lower())
+    if len(words) < 6:
+        return False
+    hits = sum(1 for w in words if w in _prompt_words)
+    return hits / len(words) >= 0.6
+
+
+def _looks_hallucinated(text: str) -> bool:
+    t = (text or "").strip()
+    return bool(t) and (_has_foreign_script(t) or _is_prompt_echo(t))
+
+
+def _current_transcript() -> str:
+    with _text_lock:
+        committed, partial = _committed, _partial
+    # Hide a still-streaming partial that already looks like a hallucination/echo.
+    if partial and _looks_hallucinated(partial):
+        partial = ""
+    return (f"{committed} {partial}".strip()) if partial else committed.strip()
+
+
+def _emit_transcript():
+    bridge.transcript.emit(_current_transcript())
+
+
+def _get_token() -> str:
+    """Ask our backend for a short-lived OpenAI Realtime ephemeral token."""
+    global _prompt_words
+    r = httpx.post(TOKEN_URL, headers=_auth_headers(), timeout=20)
+    r.raise_for_status()
+    data = r.json() or {}
+    tok = data.get("token")
+    if not tok:
+        raise RuntimeError("backend returned no token")
+    _prompt_words = set(re.findall(r"[a-z]+", (data.get("prompt") or "").lower()))
+    return tok
+
+
+def _stream_once(token: str):
+    """Open one Realtime WebSocket session and stream the call audio until it ends."""
+    ws_open = threading.Event()
+    closed  = threading.Event()
+
+    def on_open(_ws):
+        ws_open.set()
+        bridge.status.emit("● Live — transcribing the call in real time.")
+
+    def on_message(_ws, message):
+        global _committed, _partial
+        try:
+            ev = json.loads(message)
+        except Exception:
+            return
+        t = ev.get("type", "")
+        if t.endswith("transcription.delta"):
+            with _text_lock:
+                _partial += ev.get("delta", "")
+            _emit_transcript()
+        elif t.endswith("transcription.completed"):
+            seg = (ev.get("transcript", "") or "").strip()
+            with _text_lock:
+                # Drop prompt echoes / foreign-language hallucinations; keep real speech.
+                if seg and not _looks_hallucinated(seg):
+                    _committed = (f"{_committed} {seg}".strip()) if _committed else seg
+                _partial = ""
+            _emit_transcript()
+        elif t == "error":
+            msg = (ev.get("error") or {}).get("message", "stream error")
+            bridge.status.emit(f"OpenAI: {msg}")
+
+    def on_close(_ws, *_a):
+        closed.set()
+
+    def on_error(_ws, err):
+        bridge.status.emit(f"Stream error: {err}")
+        closed.set()
+
+    ws = websocket.WebSocketApp(
+        REALTIME_WS_URL,
+        header=[f"Authorization: Bearer {token}"],   # GA API: no OpenAI-Beta header
+        on_open=on_open, on_message=on_message, on_close=on_close, on_error=on_error,
+    )
+    threading.Thread(target=ws.run_forever, daemon=True).start()
+    if not ws_open.wait(timeout=12):
+        try: ws.close()
+        except Exception: pass
+        return
+
+    # Capture the call audio (loopback = "what you hear") and stream it as PCM16.
     try:
-        with make_recorder() as rec:
-            while _recording:
-                buf.append(rec.record(numframes=REC_SR // 10).copy())
+        speaker = sc.default_speaker()
+        source  = sc.get_microphone(speaker.name, include_loopback=True)
+        with source.recorder(samplerate=STREAM_SR, channels=1) as rec:
+            while _listening and not closed.is_set():
+                block = rec.record(numframes=STREAM_BLOCK).flatten()
+                if _paused:
+                    continue                    # drop audio while paused (connection stays up)
+                pcm16 = (np.clip(block, -1.0, 1.0) * 32767).astype("<i2").tobytes()
+                try:
+                    ws.send(json.dumps({"type": "input_audio_buffer.append",
+                                        "audio": base64.b64encode(pcm16).decode("ascii")}))
+                except Exception:
+                    break
     except Exception as e:
         bridge.status.emit(f"Audio capture error: {e}")
+    finally:
+        try: ws.close()
+        except Exception: pass
 
 
-def start_recording():
-    """Capture the microphone, and (if _capture_both) the call audio via loopback."""
-    global _recording, _mic_buf, _loop_buf, _mic_thread, _loop_thread
-    _mic_buf, _loop_buf = [], []
-    _recording = True
-    mic = sc.default_microphone()
-    _mic_thread = threading.Thread(
-        target=_record_into,
-        args=(lambda: mic.recorder(samplerate=REC_SR, channels=1), _mic_buf), daemon=True)
-    _mic_thread.start()
-    if _capture_both:
-        speaker  = sc.default_speaker()
-        loopback = sc.get_microphone(speaker.name, include_loopback=True)   # "what you hear"
-        _loop_thread = threading.Thread(
-            target=_record_into,
-            args=(lambda: loopback.recorder(samplerate=REC_SR, channels=1), _loop_buf), daemon=True)
-        _loop_thread.start()
-    else:
-        _loop_thread = None
-
-
-def stop_and_transcribe() -> str:
-    """Stop both streams, mix you + the call audio into one clip, transcribe via Whisper."""
-    global _recording
-    _recording = False
-    for th in (_mic_thread, _loop_thread):
-        if th is not None:
-            th.join(timeout=2)
-    mic  = np.concatenate(_mic_buf).flatten()  if _mic_buf  else np.zeros(0, dtype="float32")
-    loop = np.concatenate(_loop_buf).flatten() if _loop_buf else np.zeros(0, dtype="float32")
-    if mic.size == 0 and loop.size == 0:
-        return ""
-    n = max(mic.size, loop.size)
-    mic  = np.pad(mic,  (0, n - mic.size))
-    loop = np.pad(loop, (0, n - loop.size))
-    mixed = np.clip(mic + loop, -1.0, 1.0).astype("float32")   # you + client in one track
-    wav_path = os.path.join(tempfile.gettempdir(), "solutionsdesk_voice.wav")
-    sf.write(wav_path, mixed, REC_SR)
-
-    # Transcribe via the backend's /api/transcribe (keeps the OpenAI key on the
-    # server — never shipped inside the distributed .exe).
-    with open(wav_path, "rb") as f:
-        files = {"audio": ("voice.wav", f, "audio/wav")}
-        r = httpx.post(TRANSCRIBE_URL, files=files, headers=_auth_headers(), timeout=120)
-    r.raise_for_status()
-    return (r.json().get("text") or "").strip()
+def _run_stream():
+    """Keep a live transcription session up, reconnecting if it drops."""
+    while _listening:
+        try:
+            token = _get_token()
+        except Exception as e:
+            bridge.status.emit(f"Token error: {e} — retrying…")
+            time.sleep(3)
+            continue
+        _stream_once(token)
+        if _listening:
+            bridge.status.emit("Reconnecting…")
+            time.sleep(1)
 
 
 # ── Convert the RAG block JSON into colored HTML (matches the web chat) ─────────
@@ -248,10 +362,10 @@ def blocks_to_html(data: dict) -> str:
 
 
 # ── Send the current transcript to the RAG backend ──────────────────────────────
-def ask_rag():
-    query = _captured.strip()
+def ask_rag(query: str):
+    query = (query or "").strip()
     if not query:
-        bridge.answer.emit("(Nothing to send — press ▶ Start, speak, then ■ Stop.)")
+        bridge.answer.emit("(Nothing to send yet — let the other person speak first.)")
         return
     bridge.answer.emit("Thinking…")
     payload = {"messages": [{"role": "user", "content": query}]}
@@ -290,6 +404,26 @@ def ask_rag():
         bridge.answer.emit(f"Request failed: {e}")
 
 
+# ── Hide the window from screen capture (Windows 10 2004+ / 11) ──────────────────
+WDA_EXCLUDEFROMCAPTURE = 0x00000011
+
+
+def _exclude_from_capture(widget) -> bool:
+    """Make the window invisible to screen sharing / screenshots (Windows only).
+
+    Returns True if the OS accepted the call. The window stays visible on the real
+    monitor; capture pipelines (Meet/Zoom/Teams, PrintScreen) simply don't see it.
+    """
+    if os.name != "nt":
+        return False
+    try:
+        hwnd = int(widget.winId())
+        ok = ctypes.windll.user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+        return bool(ok)
+    except Exception:
+        return False
+
+
 # ── Floating window ─────────────────────────────────────────────────────────────
 class FloatingWindow(QWidget):
     def __init__(self):
@@ -322,17 +456,9 @@ class FloatingWindow(QWidget):
             QPushButton#send:hover{background:#1d4ed8;}
             QPushButton#close{background:transparent;color:#94a3b8;font-size:16px;border:none;}
             QPushButton#close:hover{color:#0f172a;}
-            QPushButton#play{background:#16a34a;color:#fff;font-size:10px;font-weight:700;
-                  border:none;border-radius:7px;padding:4px 12px;}
-            QPushButton#play:hover{background:#15803d;}
-            QPushButton#stop{background:#dc2626;color:#fff;font-size:10px;font-weight:700;
-                  border:none;border-radius:7px;padding:4px 12px;}
-            QPushButton#stop:hover{background:#b91c1c;}
-            QPushButton#play:disabled,QPushButton#stop:disabled{background:#e2e8f0;color:#94a3b8;}
-            QPushButton#modebtn{background:#eef2ff;color:#4338ca;font-size:10px;font-weight:700;
+            QPushButton#mini{background:#eef2ff;color:#4338ca;font-size:10px;font-weight:700;
                   border:1px solid #e0e7ff;border-radius:7px;padding:4px 10px;}
-            QPushButton#modebtn:hover{background:#e0e7ff;}
-            QPushButton#modebtn:disabled{background:#f1f5f9;color:#94a3b8;border-color:#e2e8f0;}
+            QPushButton#mini:hover{background:#e0e7ff;}
         """)
         outer = QVBoxLayout(self); outer.setContentsMargins(0, 0, 0, 0); outer.addWidget(card)
 
@@ -346,93 +472,79 @@ class FloatingWindow(QWidget):
         head.addWidget(title); head.addStretch(1); head.addWidget(closeb)
         v.addLayout(head)
 
-        self.status = QLabel("Ready. Press ▶ Start and speak your question.")
+        self.status = QLabel("Starting microphone…")
         self.status.setObjectName("status"); self.status.setWordWrap(True)
         v.addWidget(self.status)
 
+        # Transcript header + live controls (Pause / Clear)
         caphead = QHBoxLayout()
-        capL = QLabel("TRANSCRIPT"); capL.setObjectName("capLabel")
-        self.modeb = QPushButton(); self.modeb.setObjectName("modebtn")
-        self.modeb.setToolTip("Switch between capturing just your mic, or your mic + the call audio")
-        self.modeb.clicked.connect(self.on_toggle_mode)
-        self.playb = QPushButton("▶ Start"); self.playb.setObjectName("play")
-        self.playb.clicked.connect(self.on_play)
-        self.stopb = QPushButton("■ Stop"); self.stopb.setObjectName("stop")
-        self.stopb.clicked.connect(self.on_stop)
-        self.stopb.setEnabled(False)
+        capL = QLabel("LIVE TRANSCRIPT"); capL.setObjectName("capLabel")
+        self.pauseb = QPushButton("⏸ Pause"); self.pauseb.setObjectName("mini")
+        self.pauseb.setToolTip("Pause / resume listening")
+        self.pauseb.clicked.connect(self.on_pause)
+        self.clearb = QPushButton("Clear"); self.clearb.setObjectName("mini")
+        self.clearb.setToolTip("Clear the current transcript")
+        self.clearb.clicked.connect(self.on_clear)
         caphead.addWidget(capL); caphead.addStretch(1)
-        caphead.addWidget(self.modeb); caphead.addWidget(self.playb); caphead.addWidget(self.stopb)
+        caphead.addWidget(self.pauseb); caphead.addWidget(self.clearb)
         v.addLayout(caphead)
-        self._refresh_mode_btn()
-        self.caption = QTextEdit(); self.caption.setReadOnly(True); self.caption.setFixedHeight(70)
+
+        self.caption = QTextEdit(); self.caption.setReadOnly(True); self.caption.setFixedHeight(110)
         v.addWidget(self.caption)
 
-        self.sendb = QPushButton("Send to RAG"); self.sendb.setObjectName("send")
+        self.sendb = QPushButton("Send to RAG  (Enter)"); self.sendb.setObjectName("send")
         self.sendb.clicked.connect(self.on_send)
         v.addWidget(self.sendb)
 
         ansL = QLabel("ANSWER"); ansL.setObjectName("ansLabel"); v.addWidget(ansL)
         self.answer = QTextEdit(); self.answer.setReadOnly(True)
-        self.answer.setObjectName("answer"); self.answer.setMinimumHeight(330)
+        self.answer.setObjectName("answer"); self.answer.setMinimumHeight(300)
         v.addWidget(self.answer, 1)
 
-        bridge.transcribed.connect(self.on_transcribed)
+        bridge.transcript.connect(self.on_transcript)
         bridge.answer.connect(self.answer.setHtml)
         bridge.status.connect(self.status.setText)
 
+        # ENTER (main + numpad) sends the transcript from anywhere in the window.
+        for key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            sc_ = QShortcut(QKeySequence(key), self)
+            sc_.setContext(Qt.ShortcutContext.WindowShortcut)
+            sc_.activated.connect(self.on_send)
+
+    # ── live transcript ──
+    def on_transcript(self, text):
+        """Render the full live transcript (committed words + the streaming partial)."""
+        self.caption.setPlainText(text)
+        sb = self.caption.verticalScrollBar(); sb.setValue(sb.maximum())
+
     def on_send(self):
-        threading.Thread(target=ask_rag, daemon=True).start()
-
-    def _refresh_mode_btn(self):
-        self.modeb.setText("🎙 Me + call" if _capture_both else "🎙 Me only")
-
-    def on_toggle_mode(self):
-        global _capture_both
-        _capture_both = not _capture_both
-        self._refresh_mode_btn()
-        self.status.setText("Capturing your mic + the call audio." if _capture_both
-                            else "Capturing your mic only.")
-
-    def on_play(self):
-        """Start recording from the microphone (+ call audio if 'Me + call')."""
-        global _captured
-        _captured = ""
+        global _committed, _partial
+        query = _current_transcript()
+        with _text_lock:
+            _committed, _partial = "", ""     # clear so the next question starts fresh
         self.caption.clear()
-        try:
-            start_recording()
-        except Exception as e:
-            self.status.setText(f"Microphone error: {e}")
+        if not query:
+            self.status.setText("Nothing to send yet — wait for some speech.")
             return
-        self.playb.setEnabled(False)
-        self.stopb.setEnabled(True)
-        self.modeb.setEnabled(False)
-        self.status.setText("● Recording you + call audio… press ■ Stop when done." if _capture_both
-                            else "● Recording your mic… press ■ Stop when done.")
+        threading.Thread(target=ask_rag, args=(query,), daemon=True).start()
 
-    def on_stop(self):
-        """Stop recording and transcribe (in a worker thread — Whisper is a network call)."""
-        self.stopb.setEnabled(False)
-        self.status.setText("Transcribing…")
-        threading.Thread(target=self._do_transcribe, daemon=True).start()
+    def on_clear(self):
+        global _committed, _partial
+        with _text_lock:
+            _committed, _partial = "", ""
+        self.caption.clear()
 
-    def _do_transcribe(self):
-        try:
-            text = stop_and_transcribe()
-        except Exception as e:
-            bridge.status.emit(f"Transcription failed: {e}")
-            bridge.transcribed.emit("")
-            return
-        bridge.transcribed.emit(text)
+    def on_pause(self):
+        global _paused
+        _paused = not _paused
+        self.pauseb.setText("▶ Resume" if _paused else "⏸ Pause")
+        self.status.setText("⏸ Paused — not listening." if _paused
+                            else "● Live — transcribing the call in real time.")
 
-    def on_transcribed(self, text):
-        global _captured
-        _captured = text
-        self.caption.setPlainText(text or "(Nothing heard — press ▶ Start to try again.)")
-        self.playb.setEnabled(True)
-        self.stopb.setEnabled(False)
-        self.modeb.setEnabled(True)
-        self.status.setText("Transcribed. Press Send to RAG, or ▶ Start to record again."
-                            if text else "No speech detected. Press ▶ Start to try again.")
+    def closeEvent(self, e):
+        global _listening
+        _listening = False
+        super().closeEvent(e)
 
     # Frameless window dragging
     def mousePressEvent(self, e):
@@ -492,6 +604,18 @@ def main():
     win.show()
     win.raise_()
     win.activateWindow()
+
+    # Hide from screen sharing/screenshots. winId() is valid only after show();
+    # a 0ms timer also re-applies once the native handle is fully realized.
+    def _apply_hide():
+        if not _exclude_from_capture(win):
+            bridge.status.emit("⚠ Screen-hide unavailable on this Windows version.")
+    _apply_hide()
+    QTimer.singleShot(0, _apply_hide)
+
+    # Start the always-on live transcription stream.
+    threading.Thread(target=_run_stream, daemon=True).start()
+
     sys.exit(app.exec())
 
 

@@ -11,3 +11,8 @@ build/
 
 # proposal index rollback backups
 embeddings/*.bak
+
+# profiling / trace output
+importtime.log
+trace.log
+trace2.log
