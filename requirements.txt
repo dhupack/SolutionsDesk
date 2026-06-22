@@ -28,3 +28,9 @@ gdown>=5.1.0
 numpy>=1.24.0
 python-dotenv>=1.0.0
 openpyxl>=3.1.0
+
+# Voice window (desktop .exe) — online_mode.py streams audio to the OpenAI
+# Realtime API over a websocket. Pure-Python, tiny; the Render server never
+# imports it (it spawns online_mode.py as a subprocess), but the PyInstaller
+# build env needs it installed so the .exe can bundle it (see SolutionsDesk.spec).
+websocket-client>=1.7.0
