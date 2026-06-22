@@ -19,7 +19,15 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
-# ── Boilerplate paragraph detection ────────────────────────────────────────────
+# ── Chunking knobs ──────────────────────────────────────────────────────────────
+# A section whose body is at/under MAX_WORDS stays one chunk; larger leaf bodies
+# are split at paragraph boundaries. Consecutive sibling sections each under
+# MERGE_WORDS are merged into one chunk (avoids a swarm of tiny vectors).
+MAX_WORDS = 350
+MERGE_WORDS = 80
+MIN_CHUNK_CHARS = 60
+
+# ── Boilerplate paragraph / line detection ──────────────────────────────────────
 _BOILERPLATE_RE = re.compile(
     r'\.{5,}'                               # TOC dots
     r'|Page \| \d+'                         # "Page | 12"
@@ -28,14 +36,89 @@ _BOILERPLATE_RE = re.compile(
     r'|Gopalpura bypass'
     r'|Office No\.'
     r'|Submitted on\s*[–\-]'               # cover page date
-    r'|W\d+\s+[•\-]\s+\w'                 # project timeline rows
+    r'|Table of Contents'
     r'|^\s*\d+\s*$',                        # lone page numbers
     re.IGNORECASE | re.MULTILINE
 )
 
+# ── Heading detection ───────────────────────────────────────────────────────────
+# Numbered headings like "1", "1.2", "2.2.1 Smart Traffic ...". The dotted number
+# gives both the path and the depth (number of components). Title must look like a
+# heading: starts with a letter, not too long, and not ending in sentence period.
+_NUM_HEADING_RE = re.compile(r'^\s*(\d+(?:\.\d+)*)\.?\s+([A-Za-z(].{0,90})$')
+
+
+def _numbered_heading(line: str) -> Optional[Tuple[str, str, int]]:
+    """Return (path, title, level) if the line is a numbered heading, else None."""
+    m = _NUM_HEADING_RE.match(line)
+    if not m:
+        return None
+    path, title = m.group(1), m.group(2).strip()
+    # Reject lines that are really sentences/bullets that happen to start with a number.
+    if title.endswith('.') and len(title.split()) > 12:
+        return None
+    if title.endswith((',', ';', ':')) and len(title.split()) > 12:
+        return None
+    level = path.count('.') + 1
+    return path, title, level
+
+
+def _good_top_title(title: str) -> bool:
+    """A plausible top-level section title: no digits, starts uppercase, and is
+    either multi-word or a single long non-acronym word ('Assumptions'). Rejects
+    table cells like 'CRM', 'MP', 'GB + 64 GB' that start with a stray integer."""
+    if any(ch.isdigit() for ch in title):
+        return False
+    if not title[:1].isupper():
+        return False
+    alpha = re.findall(r"[A-Za-z]+", title)
+    if not alpha:
+        return False
+    if len(alpha) >= 2:
+        return True
+    w = alpha[0]
+    return len(w) >= 5 and not w.isupper()
+
+
+def _validate_headings(elements: List[Dict]) -> None:
+    """Reject numbered-heading false positives from numeric tables (rows like
+    '4 GB + 64 GB', '14 Hypercare & Support'). Walks elements in document order:
+    a decimal heading is valid only if its parent heading was already seen; a bare
+    integer N is valid only if it continues the section sequence (max_top < N <=
+    max_top+2, tolerating one image-only/missing heading) and has a real title.
+    Invalid headings are demoted back to body text so their content isn't lost.
+    Only PDF (numbered) headings are checked — Word/PPT headings have path=None."""
+    # A page with many bare-integer "headings" is a numeric table (Gantt, BOQ, spec
+    # sheet), not a run of sections — its integer rows are demoted wholesale.
+    DENSE = 4
+    page_int_count: Dict[str, int] = {}
+    for el in elements:
+        if el.get("kind") == "heading" and el.get("path") and '.' not in el["path"]:
+            pr = el.get("page_ref", "")
+            page_int_count[pr] = page_int_count.get(pr, 0) + 1
+
+    seen = set()
+    max_top = 0
+    for el in elements:
+        if el.get("kind") != "heading" or not el.get("path"):
+            continue
+        path, title = el["path"], el["text"]
+        if '.' in path:
+            valid = path.rsplit('.', 1)[0] in seen
+        else:
+            n = int(path)
+            dense = page_int_count.get(el.get("page_ref", ""), 0) >= DENSE
+            valid = (not dense) and (max_top < n <= max_top + 2) and _good_top_title(title)
+        if valid:
+            seen.add(path)
+            if '.' not in path:
+                max_top = int(path)
+        else:
+            el["kind"] = "body"
+            el["text"] = f"{path} {title}"
+
+
 # ── Industry classification ─────────────────────────────────────────────────────
-# Client name → industry. Checked FIRST — the folder/company name is the most
-# reliable signal. Order matters: more specific names before generic ones.
 _CLIENT_INDUSTRY = [
     ('amns',           'steel'),
     ('arcelormittal',  'steel'),
@@ -51,11 +134,9 @@ _CLIENT_INDUSTRY = [
     ('amazon',         'ecommerce'),
     ('asahi',          'glass'),
     ('ashai',          'glass'),
-    ('adani',          'conglomerate'),  # generic Adani — checked after kattupalli/ennore
+    ('adani',          'conglomerate'),
 ]
 
-# Content keywords → industry. Checked only if the client name does not resolve.
-# Matched with word boundaries so "port" never matches "transport"/"export"/"report".
 _CONTENT_INDUSTRY = {
     'steel':      ['steel plant', 'hazira', 'marshalling yard', 'rolling mill'],
     'port':       ['vessel', 'berth', 'barge', 'jetty', 'coal shipment', 'navis', 'stevedoring'],
@@ -67,14 +148,12 @@ _CONTENT_INDUSTRY = {
     'mining':     ['mine', 'mining', 'mineral'],
 }
 
+
 def _detect_industry(text: str, client_name: str) -> str:
     cl = client_name.lower()
-    # 1. Strongest signal: client/company name maps directly to an industry
     for name, industry in _CLIENT_INDUSTRY:
         if name in cl:
             return industry
-    # 2. Fall back to content keywords with WORD-BOUNDARY matching
-    #    (so "port" matches the standalone word, never inside "transport"/"export")
     body = text[:2000].lower()
     for industry, kws in _CONTENT_INDUSTRY.items():
         for kw in kws:
@@ -86,122 +165,325 @@ def _detect_industry(text: str, client_name: str) -> str:
 def _is_boilerplate(para: str) -> bool:
     if _BOILERPLATE_RE.search(para):
         return True
-    if len(para) > 10 and para.count('.') / len(para) > 0.25:
-        return True
     if 'axestrack has been recognized' in para.lower() and 'gartner' in para.lower():
         return True
     return False
 
 
 def _clean_text(text: str) -> str:
-    text = re.sub(r'\s{3,}', '  ', text)
+    text = re.sub(r'[ \t]{3,}', '  ', text)
     text = re.sub(r'-\s*\n\s*', '', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
 
 
-def _split_into_chunks(paragraphs: List[str], target_words: int = 300, overlap: int = 1) -> List[str]:
-    chunks, i = [], 0
-    while i < len(paragraphs):
-        chunk_paras, word_count, j = [], 0, i
-        while j < len(paragraphs) and word_count < target_words:
-            chunk_paras.append(paragraphs[j])
-            word_count += len(paragraphs[j].split())
-            j += 1
-        text = '\n\n'.join(chunk_paras).strip()
-        if len(text) > 100:
-            chunks.append(text)
-        i = max(i + 1, j - overlap)
-    return chunks
+# ── Section model ───────────────────────────────────────────────────────────────
+# A Section is one heading plus the body text directly under it (before the next
+# heading). `path` is the dotted number ("2.2.1"), `parent` is the path with the
+# last component dropped ("2.2", or None at the top level). `breadcrumb` is the
+# chain of ancestor titles. Sections are produced in document order.
+class Section:
+    __slots__ = ("path", "title", "level", "parent", "breadcrumb", "body", "page_ref")
+
+    def __init__(self, path, title, level, parent, breadcrumb, page_ref):
+        self.path = path
+        self.title = title
+        self.level = level
+        self.parent = parent
+        self.breadcrumb = breadcrumb
+        self.body: List[str] = []
+        self.page_ref = page_ref
 
 
-def _split_paged(para_page: List[Tuple[str, str]], target_words: int = 300, overlap: int = 1):
-    """
-    Like _split_into_chunks but carries a page reference.
-    Input:  list of (paragraph, page_ref) where page_ref is e.g. 'p.5', 'slide 3', or ''.
-    Output: list of (chunk_text, page_ref_of_first_paragraph_in_chunk).
-    """
-    chunks, i = [], 0
-    while i < len(para_page):
-        chunk_paras, word_count, j = [], 0, i
-        while j < len(para_page) and word_count < target_words:
-            chunk_paras.append(para_page[j][0])
-            word_count += len(para_page[j][0].split())
-            j += 1
-        text = '\n\n'.join(chunk_paras).strip()
-        if len(text) > 100:
-            chunks.append((text, para_page[i][1]))
-        i = max(i + 1, j - overlap)
-    return chunks
+def _parent_of(path: str) -> Optional[str]:
+    return path.rsplit('.', 1)[0] if '.' in path else None
 
 
-def _extract_pdf(file_path: Path) -> List[Tuple[str, int]]:
-    import PyPDF2
-    pages = []
+# ── Format extractors → ordered list of "elements" ──────────────────────────────
+# Each element is a dict: {kind: 'heading'|'body', text, page_ref, level?}.
+# A common assembler turns elements into Sections, so the chunking logic is shared
+# across PDF / PPT / Word.
+
+def _extract_pdf_elements(file_path: Path) -> List[Dict]:
+    try:
+        from PyPDF2 import PdfReader            # production dependency
+    except ImportError:
+        from pypdf import PdfReader             # successor package, identical API
+    elements: List[Dict] = []
     try:
         with open(file_path, 'rb') as f:
-            reader = PyPDF2.PdfReader(f)
+            reader = PdfReader(f)
             for i, page in enumerate(reader.pages, 1):
-                text = page.extract_text() or ''
-                if text.strip():
-                    pages.append((_clean_text(text), i))
+                raw = page.extract_text() or ''
+                if not raw.strip():
+                    continue
+                page_ref = f"p.{i}"
+                # Split into lines; numbered lines are headings, the rest is body.
+                buf: List[str] = []
+                for line in _clean_text(raw).split('\n'):
+                    line = line.strip()
+                    if not line or _is_boilerplate(line):
+                        continue
+                    h = _numbered_heading(line)
+                    if h:
+                        if buf:
+                            elements.append({"kind": "body", "text": "\n".join(buf), "page_ref": page_ref})
+                            buf = []
+                        path, title, level = h
+                        elements.append({"kind": "heading", "path": path, "text": title,
+                                         "level": level, "page_ref": page_ref})
+                    else:
+                        buf.append(line)
+                if buf:
+                    elements.append({"kind": "body", "text": "\n".join(buf), "page_ref": page_ref})
     except Exception as e:
         logger.error(f"PDF extraction failed for {file_path.name}: {e}")
-    return pages
+    return elements
 
 
-def _extract_ppt(file_path: Path) -> List[Tuple[str, int]]:
+def _extract_pptx_elements(file_path: Path) -> List[Dict]:
+    """PPT has no nested hierarchy: each slide is one level-1 section whose title is
+    the slide title (or 'Slide N') and whose body is the remaining shape text."""
     from pptx import Presentation
-    slides = []
+    elements: List[Dict] = []
     try:
         prs = Presentation(file_path)
         for i, slide in enumerate(prs.slides, 1):
-            texts = []
+            title_text = ""
+            try:
+                if slide.shapes.title and slide.shapes.title.text.strip():
+                    title_text = slide.shapes.title.text.strip()
+            except Exception:
+                title_text = ""
+            # Body includes ALL shape text (title too) so title-only slides still
+            # produce content; the title also doubles as the heading label.
+            body_parts = []
             for shape in slide.shapes:
-                if hasattr(shape, 'text') and shape.text.strip():
-                    texts.append(shape.text.strip())
-            text = '\n'.join(texts)
-            if len(text.strip()) > 50:
-                slides.append((_clean_text(text), i))
+                if not hasattr(shape, 'text'):
+                    continue
+                t = shape.text.strip()
+                if t:
+                    body_parts.append(t)
+            body = _clean_text("\n".join(body_parts))
+            if not body:
+                continue
+            elements.append({"kind": "heading", "path": str(i),
+                             "text": title_text or f"Slide {i}", "level": 1,
+                             "page_ref": f"slide {i}"})
+            elements.append({"kind": "body", "text": body, "page_ref": f"slide {i}"})
     except Exception as e:
         logger.error(f"PPT extraction failed for {file_path.name}: {e}")
-    return slides
+    return elements
 
 
-def _extract_word(file_path: Path) -> List[Tuple[str, str]]:
+def _linearize_docx_table(table) -> str:
+    """Flatten a Word table to 'col: val | col: val' rows so counts/specs stay
+    queryable instead of becoming a wall of cells."""
+    rows = []
+    cells = [[c.text.strip() for c in row.cells] for row in table.rows]
+    if not cells:
+        return ""
+    header = cells[0]
+    looks_headed = all(h and len(h) < 40 for h in header) and len(header) > 1
+    for r in cells[1:] if looks_headed else cells:
+        if not any(r):
+            continue
+        if looks_headed:
+            rows.append(" | ".join(f"{h}: {v}" for h, v in zip(header, r) if v))
+        else:
+            rows.append(" | ".join(v for v in r if v))
+    return "\n".join(rows)
+
+
+def _extract_docx_elements(file_path: Path) -> List[Dict]:
+    """Word headings are explicit (style 'Heading N'), so we get a real leveled
+    tree. Tables are linearized inline. Synthetic numbering is assigned by the
+    assembler from the heading levels."""
     from docx import Document
-    sections = []
+    from docx.document import Document as _Doc
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+    elements: List[Dict] = []
     try:
         doc = Document(file_path)
-        current_heading = "Introduction"
-        current_paras = []
-
-        for para in doc.paragraphs:
-            text = para.text.strip()
-            if not text:
-                continue
-            style = para.style.name.lower() if para.style else ''
-            is_heading = 'heading' in style
-
-            if is_heading and current_paras:
-                content = '\n'.join(current_paras)
-                if len(content) > 100:
-                    sections.append((_clean_text(content), current_heading))
-                current_heading = text
-                current_paras = []
-            elif is_heading:
-                current_heading = text
-            else:
-                current_paras.append(text)
-
-        if current_paras:
-            content = '\n'.join(current_paras)
-            if len(content) > 100:
-                sections.append((_clean_text(content), current_heading))
-
+        parent_elm = doc.element.body
+        for child in parent_elm.iterchildren():
+            if child.tag.endswith('}p'):
+                para = Paragraph(child, doc)
+                text = para.text.strip()
+                if not text or _is_boilerplate(text):
+                    continue
+                style = (para.style.name if para.style else '') or ''
+                m = re.search(r'heading\s*(\d+)', style, re.IGNORECASE)
+                if m:
+                    level = int(m.group(1))
+                    elements.append({"kind": "heading", "path": None, "text": text,
+                                     "level": level, "page_ref": ""})
+                elif style.lower() in ('title',):
+                    elements.append({"kind": "heading", "path": None, "text": text,
+                                     "level": 1, "page_ref": ""})
+                else:
+                    elements.append({"kind": "body", "text": text, "page_ref": ""})
+            elif child.tag.endswith('}tbl'):
+                table = Table(child, doc)
+                flat = _linearize_docx_table(table)
+                if flat:
+                    elements.append({"kind": "body", "text": flat, "page_ref": ""})
     except Exception as e:
         logger.error(f"Word extraction failed for {file_path.name}: {e}")
+    return elements
+
+
+# ── Assemble elements → Sections → chunks ───────────────────────────────────────
+
+def _assign_synthetic_paths(elements: List[Dict]) -> None:
+    """For formats without numbered headings (Word, PPT), assign a dotted path per
+    heading from running per-level counters so parent/sibling grouping still works.
+    Numbered headings (PDF) keep their own path."""
+    counters: Dict[int, int] = {}
+    for el in elements:
+        if el.get("kind") != "heading":
+            continue
+        if el.get("path"):
+            continue  # numbered heading already has a real path
+        level = el.get("level", 1)
+        counters[level] = counters.get(level, 0) + 1
+        for deeper in [k for k in counters if k > level]:
+            counters.pop(deeper, None)
+        el["path"] = ".".join(str(counters[k]) for k in sorted(counters) if k <= level)
+
+
+def _build_sections(elements: List[Dict]) -> List[Section]:
+    _assign_synthetic_paths(elements)
+    sections: List[Section] = []
+    title_by_path: Dict[str, str] = {}
+    current: Optional[Section] = None
+    # Body that appears before the first heading — or a whole document with no
+    # detectable headings (scanned PDF, un-styled Word) — is collected under a
+    # synthetic "Introduction" section so its content is chunked, not lost.
+    for el in elements:
+        if el["kind"] == "body" and current is None:
+            current = Section("0", "Introduction", 1, None, "Introduction", el["page_ref"])
+            title_by_path["0"] = "Introduction"
+            sections.append(current)
+            current.body.append(el["text"])
+            continue
+        if el["kind"] == "heading":
+            path = el["path"]
+            title = el["text"]
+            title_by_path[path] = title
+            parent = _parent_of(path)
+            # breadcrumb from ancestor paths
+            crumbs, p = [], path
+            while p is not None:
+                crumbs.append(title_by_path.get(p, ""))
+                p = _parent_of(p)
+            breadcrumb = " > ".join(c for c in reversed(crumbs) if c)
+            current = Section(path, title, el["level"], parent, breadcrumb, el["page_ref"])
+            sections.append(current)
+        elif el["kind"] == "body" and current is not None:
+            current.body.append(el["text"])
     return sections
+
+
+def _split_body(text: str) -> List[str]:
+    """Split an oversized body at paragraph boundaries into <= MAX_WORDS pieces."""
+    paras = [p.strip() for p in re.split(r'\n{2,}', text) if p.strip()]
+    if not paras:
+        paras = [text]
+    chunks, buf, wc = [], [], 0
+    for p in paras:
+        pw = len(p.split())
+        if buf and wc + pw > MAX_WORDS:
+            chunks.append("\n\n".join(buf))
+            buf, wc = [], 0
+        buf.append(p)
+        wc += pw
+    if buf:
+        chunks.append("\n\n".join(buf))
+    return chunks
+
+
+def _has_descendants(section: Section, sections: List[Section]) -> bool:
+    prefix = section.path + "."
+    return any(s.path.startswith(prefix) for s in sections)
+
+
+def _sections_to_chunks(sections: List[Section]) -> List[Dict]:
+    """Turn Sections into chunk dicts, applying: drop empty heading-only parents,
+    merge tiny consecutive siblings, split oversized leaf bodies."""
+    raw = []
+    for s in sections:
+        body = _clean_text("\n\n".join(b for b in s.body if b.strip()))
+        words = len(body.split())
+        raw.append({
+            "path": s.path, "title": s.title, "parent": s.parent,
+            "breadcrumb": s.breadcrumb, "page_ref": s.page_ref,
+            "body": body, "words": words,
+            "has_children": _has_descendants(s, sections),
+        })
+
+    chunks: List[Dict] = []
+    i = 0
+    while i < len(raw):
+        sec = raw[i]
+        # Heading-only node that has children (e.g., "1.2") and no body: skip — its
+        # children carry the content. If it has no children and no body, also skip.
+        if not sec["body"]:
+            i += 1
+            continue
+
+        # Merge a run of tiny consecutive siblings (same parent) into one chunk.
+        if sec["words"] < MERGE_WORDS and not sec["has_children"]:
+            group = [sec]
+            j = i + 1
+            while (j < len(raw) and raw[j]["body"] and not raw[j]["has_children"]
+                   and raw[j]["words"] < MERGE_WORDS
+                   and raw[j]["parent"] == sec["parent"]):
+                group.append(raw[j])
+                j += 1
+            if len(group) > 1:
+                merged_text = "\n\n".join(f"{g['title']}: {g['body']}" for g in group)
+                chunks.append({
+                    "path": sec["path"], "title": group[0]["title"] + f" (+{len(group)-1} more)",
+                    "parent": sec["parent"], "breadcrumb": sec["breadcrumb"],
+                    "page_ref": sec["page_ref"], "content": merged_text,
+                })
+                i = j
+                continue
+
+        # Oversized leaf → split; otherwise one chunk for the section.
+        pieces = _split_body(sec["body"]) if sec["words"] > MAX_WORDS else [sec["body"]]
+        for k, piece in enumerate(pieces):
+            title = sec["title"] if len(pieces) == 1 else f"{sec['title']} (part {k+1})"
+            chunks.append({
+                "path": sec["path"], "title": title, "parent": sec["parent"],
+                "breadcrumb": sec["breadcrumb"], "page_ref": sec["page_ref"],
+                "content": piece,
+            })
+        i += 1
+    return chunks
+
+
+_EXTRACTORS = {
+    '.pdf':  _extract_pdf_elements,
+    '.ppt':  _extract_pptx_elements,
+    '.pptx': _extract_pptx_elements,
+    '.doc':  _extract_docx_elements,
+    '.docx': _extract_docx_elements,
+}
+
+# The proposal index should hold Axestrack proposals/solution docs only — not the
+# client's own RFQ requirement documents, nor raw pricing/commercials sheets.
+_EXCLUDE_NAME_RE = re.compile(r'commercial|cost estimate', re.IGNORECASE)
+
+
+def _is_excluded_source(file_path: Path) -> bool:
+    if any(part.lower() == 'rfq' for part in file_path.parts):   # client RFQ subfolder
+        return True
+    if _EXCLUDE_NAME_RE.search(file_path.stem):                  # pricing / commercials
+        return True
+    return False
 
 
 class ProposalLoader:
@@ -210,16 +492,60 @@ class ProposalLoader:
         self.embeddings = get_embeddings()
         self.faiss_index = None
         self.metadata = []
+        # group key -> ordered list of metadata indices, for sibling rollup
+        self._parent_map: Dict[str, List[int]] = {}
+
+    def chunk_file(self, file_path: Path, client_name: str) -> List[Tuple[str, Dict]]:
+        """Heading-aware chunking for a single source file. Returns (embed_text, meta)."""
+        ext = file_path.suffix.lower()
+        extractor = _EXTRACTORS.get(ext)
+        if extractor is None:
+            return []
+        elements = extractor(file_path)
+        if not elements:
+            return []
+        _validate_headings(elements)
+        sections = _build_sections(elements)
+        chunk_dicts = [c for c in _sections_to_chunks(sections)
+                       if len(c["content"]) >= MIN_CHUNK_CHARS]
+        if not chunk_dicts:
+            return []
+
+        sample = ' '.join(c["content"] for c in chunk_dicts[:3])
+        industry = _detect_industry(sample, client_name)
+
+        out: List[Tuple[str, Dict]] = []
+        for idx, c in enumerate(chunk_dicts):
+            breadcrumb = c["breadcrumb"] or c["title"]
+            embed_text = (
+                f"Client: {client_name} | Industry: {industry} | "
+                f"Section: {breadcrumb} | File: {file_path.name}:\n\n{c['content']}"
+            )
+            # group key scopes the parent to THIS file (paths repeat across files)
+            group_key = f"{file_path.name}::{c['parent']}" if c["parent"] else ""
+            meta = {
+                "client_name": client_name,
+                "filename": file_path.name,
+                "file_type": ext.lstrip('.'),
+                "source_file": str(file_path),
+                "industry": industry,
+                "page_ref": c["page_ref"],
+                "section_path": c["path"],
+                "section_title": c["title"],
+                "breadcrumb": breadcrumb,
+                "parent_id": c["parent"],
+                "group_key": group_key,
+                "chunk_index": idx,
+                "word_count": len(c["content"].split()),
+                "content": c["content"],
+            }
+            out.append((embed_text, meta))
+        return out
 
     def load_raw_documents(self) -> List[Tuple[str, Dict]]:
-        """
-        Read directly from data/raw_proposals/ subfolders.
-        Folder name = client name. Supports PDF, PPT/PPTX, DOC/DOCX.
-        Returns list of (chunk_text, metadata).
-        """
-        all_chunks = []
-        supported = {'.pdf', '.ppt', '.pptx', '.doc', '.docx'}
-
+        """Read every supported document under data/raw_proposals/<client>/ (PDF,
+        PPT/PPTX, DOC/DOCX — never xlsx) and chunk it heading-aware."""
+        all_chunks: List[Tuple[str, Dict]] = []
         client_dirs = [d for d in RAW_PROPOSALS_DIR.iterdir() if d.is_dir()]
         if not client_dirs:
             logger.warning(f"No client folders found in {RAW_PROPOSALS_DIR}")
@@ -227,69 +553,21 @@ class ProposalLoader:
 
         for client_dir in sorted(client_dirs):
             client_name = client_dir.name
-
             for file_path in sorted(client_dir.rglob('*')):
-                if file_path.suffix.lower() not in supported:
+                if file_path.suffix.lower() not in _EXTRACTORS:
                     continue
-
-                ext = file_path.suffix.lower()
-                file_chunks = []   # list of (chunk_text, page_ref)
-
+                if _is_excluded_source(file_path):
+                    logger.info(f"Skipping non-proposal source: {file_path.name}")
+                    continue
                 try:
-                    if ext == '.pdf':
-                        # Keep page number with each paragraph so chunks can cite a page
-                        pages = _extract_pdf(file_path)
-                        para_page = []
-                        for page_text, page_num in pages:
-                            for p in re.split(r'\n{2,}', page_text):
-                                p = p.strip()
-                                if p and not _is_boilerplate(p) and len(p) > 60:
-                                    para_page.append((p, f"p.{page_num}"))
-                        file_chunks = _split_paged(para_page, target_words=300, overlap=1)
-
-                    elif ext in ('.ppt', '.pptx'):
-                        slides = _extract_ppt(file_path)
-                        for slide_text, slide_num in slides:
-                            if not _is_boilerplate(slide_text) and len(slide_text) > 60:
-                                file_chunks.append((slide_text, f"slide {slide_num}"))
-
-                    elif ext in ('.doc', '.docx'):
-                        # Word has no reliable page numbers → empty page ref (cite doc name)
-                        sections = _extract_word(file_path)
-                        for section_text, heading in sections:
-                            paragraphs = [p.strip() for p in re.split(r'\n{2,}', section_text) if p.strip()]
-                            good_paras = [(p, "") for p in paragraphs if not _is_boilerplate(p) and len(p) > 60]
-                            file_chunks.extend(_split_paged(good_paras, target_words=300, overlap=1))
-
+                    file_chunks = self.chunk_file(file_path, client_name)
                 except Exception as e:
                     logger.error(f"Failed processing {file_path.name}: {e}")
                     continue
-
                 if not file_chunks:
                     logger.info(f"No usable chunks from {file_path.name}")
                     continue
-
-                sample_text = ' '.join(t for t, _ in file_chunks[:3])
-                industry = _detect_industry(sample_text, client_name)
-
-                for idx, (chunk_text, page_ref) in enumerate(file_chunks):
-                    embed_text = (
-                        f"Client: {client_name} | Industry: {industry} | "
-                        f"File: {file_path.name}:\n\n{chunk_text}"
-                    )
-                    meta = {
-                        "client_name": client_name,
-                        "filename": file_path.name,
-                        "file_type": ext.lstrip('.'),
-                        "source_file": str(file_path),
-                        "industry": industry,
-                        "page_ref": page_ref,          # 'p.5' / 'slide 3' / '' for Word
-                        "chunk_index": idx,
-                        "word_count": len(chunk_text.split()),
-                        "content": chunk_text,
-                    }
-                    all_chunks.append((embed_text, meta))
-
+                all_chunks.extend(file_chunks)
                 logger.info(f"  {file_path.name} -> {len(file_chunks)} chunks")
 
         logger.info(f"Total proposal chunks from raw files: {len(all_chunks)}")
@@ -306,8 +584,21 @@ class ProposalLoader:
         index.add(embeddings_array)
         self.metadata = [c[1] for c in chunks]
         self.faiss_index = index
+        self._build_parent_map()
         logger.info(f"Proposal FAISS index: {len(embeddings_list)} vectors, dim={dimension}")
         return index
+
+    def _build_parent_map(self):
+        """Index group_key -> [metadata positions] so a hit can fetch its siblings,
+        and (filename, section_path) -> position so it can also fetch the parent's
+        own intro chunk."""
+        self._parent_map = {}
+        self._section_map = {}
+        for i, m in enumerate(self.metadata):
+            gk = m.get("group_key")
+            if gk:
+                self._parent_map.setdefault(gk, []).append(i)
+            self._section_map[(m.get("filename"), m.get("section_path"))] = i
 
     def save_index(self):
         PROPOSAL_FAISS_INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -322,6 +613,7 @@ class ProposalLoader:
         if PROPOSAL_METADATA_PATH.exists():
             with open(PROPOSAL_METADATA_PATH, 'r', encoding='utf-8') as f:
                 self.metadata = json.load(f)
+        self._build_parent_map()
         logger.info(f"Proposal index loaded: {len(self.metadata)} chunks")
 
     def search_vec(self, query_embedding, k: int = 3) -> List[Dict]:
@@ -339,6 +631,45 @@ class ProposalLoader:
                     "metadata": self.metadata[idx]
                 })
         return results
+
+    def search_vec_grouped(self, query_embedding, k: int = 5,
+                           max_parents: int = 2, max_siblings: int = 8) -> List[Dict]:
+        """Top-k search, then roll up siblings: for the strongest hits that belong to
+        a parent section, pull in the other children of that parent (a metadata
+        lookup, NOT bounded by k) so the LLM gets the whole section. Original hits
+        keep their score; siblings are tagged is_sibling=True and inherit the
+        triggering hit's score for ordering."""
+        hits = self.search_vec(query_embedding, k=k)
+        if not hits:
+            return hits
+        seen = {id(h["metadata"]): h for h in hits}  # de-dupe by metadata identity
+        ordered = list(hits)
+        parents_done = set()
+        for h in hits:
+            if len(parents_done) >= max_parents:
+                break
+            gk = h["metadata"].get("group_key")
+            if not gk or gk in parents_done:
+                continue
+            sib_positions = self._parent_map.get(gk, [])
+            if len(sib_positions) <= 1:
+                continue
+            parents_done.add(gk)
+            # the parent's own intro chunk (section_path == this parent_id), if any
+            extra = []
+            pidx = self._section_map.get((h["metadata"].get("filename"),
+                                          h["metadata"].get("parent_id")))
+            if pidx is not None:
+                extra.append(pidx)
+            for pos in extra + sib_positions[:max_siblings]:
+                meta = self.metadata[pos]
+                if id(meta) in seen:
+                    continue
+                sib = {"similarity_score": h["similarity_score"],
+                       "is_sibling": True, "metadata": meta}
+                seen[id(meta)] = sib
+                ordered.append(sib)
+        return ordered
 
     def search(self, query_text: str, k: int = 3) -> List[Dict]:
         if self.faiss_index is None or not self.metadata:

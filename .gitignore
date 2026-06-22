@@ -8,3 +8,6 @@ gdrive_cookies.txt
 
 dist/
 build/
+
+# proposal index rollback backups
+embeddings/*.bak
