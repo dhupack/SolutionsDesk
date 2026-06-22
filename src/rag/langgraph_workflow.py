@@ -149,7 +149,9 @@ class RAGWorkflow:
                         else self.tier_retrieval.proposal_loader.embeddings)
             query_vec = embedder.embed_query(retrieval_query)
 
-        feature_results = (self.tier_retrieval.feature_loader.search_vec(query_vec, k=15)
+        # Grouped search: top-k match, then roll up the matched feature's bucket-mates
+        # (e.g. all CPL - Weighbridge features) so an area query gets the full toolkit.
+        feature_results = (self.tier_retrieval.feature_loader.search_vec_grouped(query_vec, k=15)
                            if feat_init else [])
         # Grouped search: top-k match, then roll up sibling sections that share a
         # parent (e.g. all 2.2.x features) so umbrella questions get the whole
@@ -171,9 +173,13 @@ class RAGWorkflow:
             sales  = str(row.get('Sales Talking Point', ''))
             module = str(row.get('Module / Area', ''))
             product = 'CPL' if any(b in bucket for b in ['CPL', 'CPoL', 'Platform']) else 'XSWIFT'
-            label   = "HIGH" if score >= 0.55 else ("MEDIUM" if score >= 0.42 else "LOW")
+            if r.get('is_sibling'):
+                relevance = "[Relevance: RELATED · same bucket]"
+            else:
+                label = "HIGH" if score >= 0.55 else ("MEDIUM" if score >= 0.42 else "LOW")
+                relevance = f"[Relevance: {label} {score:.0%}]"
             feature_context += (
-                f"\n#{fid} {name} ({product}) [Relevance: {label} {score:.0%}]\n"
+                f"\n#{fid} {name} ({product}) {relevance}\n"
                 f"  Module: {module} | Bucket: {bucket}\n"
                 f"  What it does: {what}\n"
                 f"  Business Value: {value}\n"
