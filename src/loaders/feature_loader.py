@@ -33,6 +33,8 @@ class FeatureLoader:
         self.faiss_index = None
         self.metadata = []
         self.features_df = None
+        # Bucket -> [metadata positions], for same-bucket sibling rollup
+        self._bucket_map = {}
 
     def _find_sheet(self, excel_file) -> str:
         import pandas as pd
@@ -240,8 +242,21 @@ class FeatureLoader:
 
         self.metadata = [t[1] for t in texts]
         self.faiss_index = index
+        self._build_bucket_map()
         logger.info(f"Feature FAISS index created: {len(embeddings_list)} vectors, dim={dimension}")
         return index
+
+    @staticmethod
+    def _bucket_of(meta: Dict) -> str:
+        return str((meta.get("full_row") or {}).get("Bucket", "")).strip()
+
+    def _build_bucket_map(self):
+        """Index Bucket -> [metadata positions] so a hit can pull its bucket-mates."""
+        self._bucket_map = {}
+        for i, m in enumerate(self.metadata):
+            b = self._bucket_of(m)
+            if b:
+                self._bucket_map.setdefault(b, []).append(i)
 
     def save_index(self):
         FEATURE_FAISS_INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -256,6 +271,7 @@ class FeatureLoader:
         if FEATURE_METADATA_PATH.exists():
             with open(FEATURE_METADATA_PATH, 'r', encoding='utf-8') as f:
                 self.metadata = json.load(f)
+        self._build_bucket_map()
         logger.info(f"Feature index loaded: {len(self.metadata)} features")
 
     def search_vec(self, query_embedding, k: int = 3) -> List[Dict]:
@@ -273,6 +289,37 @@ class FeatureLoader:
                     "metadata": self.metadata[idx]
                 })
         return results
+
+    def search_vec_grouped(self, query_embedding, k: int = 15,
+                           max_buckets: int = 3, max_siblings: int = 8) -> List[Dict]:
+        """Top-k search, then level-1 bucket rollup: for the strongest hits, pull in
+        the other features that share the hit's Bucket (a metadata lookup, NOT bounded
+        by k) so a query that lands in one area gets that area's full toolkit. Original
+        hits keep their score; bucket-mates are tagged is_sibling=True."""
+        hits = self.search_vec(query_embedding, k=k)
+        if not hits:
+            return hits
+        seen = {id(h["metadata"]) for h in hits}
+        ordered = list(hits)
+        buckets_done = set()
+        for h in hits:
+            if len(buckets_done) >= max_buckets:
+                break
+            b = self._bucket_of(h["metadata"])
+            if not b or b in buckets_done:
+                continue
+            positions = self._bucket_map.get(b, [])
+            if len(positions) <= 1:
+                continue
+            buckets_done.add(b)
+            for pos in positions[:max_siblings]:
+                meta = self.metadata[pos]
+                if id(meta) in seen:
+                    continue
+                seen.add(id(meta))
+                ordered.append({"similarity_score": h["similarity_score"],
+                                "is_sibling": True, "bucket": b, "metadata": meta})
+        return ordered
 
     def search(self, query_text: str, k: int = 3) -> List[Dict]:
         if self.faiss_index is None or not self.metadata:

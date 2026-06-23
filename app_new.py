@@ -346,6 +346,85 @@ def index():
     return render_template('index.html')
 
 
+# Short-term per-session memory for the floating window so follow-up questions
+# resolve even though its transcript box is cleared after every Enter. Keyed by the
+# client's session_id; holds the last few {question, answer} turns. In-process only
+# (resets on restart / Render idle spin-down) — fine for a live call. The cap keeps
+# it tiny and keeps extraction latency flat no matter how long the call runs.
+from collections import deque as _deque
+_FW_HISTORY: dict = {}
+_FW_HISTORY_TURNS = 4
+
+
+def _fw_history_text(session_id: str) -> str:
+    turns = _FW_HISTORY.get(session_id)
+    if not turns:
+        return ''
+    lines = []
+    for t in turns:
+        lines.append(f"Q: {t['q']}")
+        if t.get('a'):
+            lines.append(f"A: {t['a']}")
+    return "\n".join(lines)
+
+
+def _fw_remember(session_id: str, q: str, a: str):
+    if not session_id or not q:
+        return
+    dq = _FW_HISTORY.get(session_id)
+    if dq is None:
+        dq = _FW_HISTORY[session_id] = _deque(maxlen=_FW_HISTORY_TURNS)
+    dq.append({'q': q, 'a': (a or '')[:300]})
+
+
+def _extract_question(transcript: str, history: str = '') -> str:
+    """Pull the single most-recent question/request to answer out of a live transcript.
+
+    The floating window sends its whole rolling transcript; we isolate just the part
+    that needs answering (latest question), so retrieval + the answer stay focused
+    instead of being polluted by everything that was said earlier. The optional
+    `history` (recent Q&A for this session) lets follow-ups resolve references even
+    after the transcript box was cleared.
+    """
+    import httpx
+    key = os.getenv('OPENAI_API_KEY', '')
+    text = (transcript or '').strip()
+    if not key or not text:
+        return ''
+    text = text[-4000:]   # only recent context matters; keep the call cheap
+    model = os.getenv('OPENAI_EXTRACT_MODEL', 'gpt-4o-mini')
+    system = (
+        "You are given a live transcript of a conversation (sales / support / meeting), "
+        "and optionally the recent Q&A so far. Find the most recent question or request "
+        "that the listener now needs to answer, and rewrite it as ONE clear, SELF-CONTAINED "
+        "question in the same language as the speaker. Critically: resolve references like "
+        "'it', 'this', 'that', 'they' to the actual subject — using the recent Q&A when the "
+        "transcript alone is vague — and fold in the key details needed to answer it (e.g. "
+        "after talk of seeing truck locations, 'do you have a solution for it?' becomes 'Do "
+        "you have a solution for a client who wants to see the location of their trucks?'). "
+        "Do NOT answer it. If there is no question, return the most recent statement that "
+        "calls for a response. Output only the single rewritten question, nothing else."
+    )
+    user = (f"Recent conversation so far:\n{history}\n\nLatest transcript:\n{text}"
+            if history else text)
+    try:
+        r = httpx.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={'Authorization': f'Bearer {key}'},
+            json={'model': model, 'temperature': 0, 'max_tokens': 120,
+                  'messages': [{'role': 'system', 'content': system},
+                               {'role': 'user', 'content': user}]},
+            timeout=30,
+        )
+        r.raise_for_status()
+        return (r.json()['choices'][0]['message']['content'] or '').strip()
+    except Exception as e:
+        # Don't fail silently — if this drops, the blue "Q:" never shows and we
+        # search the raw transcript instead. Surface why so it's diagnosable.
+        print(f"[extract] question extraction failed, falling back to raw transcript: {e}")
+        return ''
+
+
 @app.route('/api/chat', methods=['POST'])
 @limiter.limit("30 per hour")
 def chat():
@@ -383,22 +462,40 @@ def chat():
 @limiter.limit("30 per hour")
 def chat_stream():
     """Server-Sent Events stream of the answer: blocks are pushed incrementally as
-    the LLM generates, so the UI fills in progressively instead of all at once."""
-    data = request.get_json()
-    messages = data.get('messages', []) if data else []
-    query = ''
-    for m in reversed(messages):
-        if m.get('role') == 'user':
-            query = str(m.get('content', '')).strip()
-            break
+    the LLM generates, so the UI fills in progressively instead of all at once.
+
+    If a 'transcript' is supplied (the floating window's rolling transcript), we first
+    extract the latest relevant question from it and answer that — and emit it back to
+    the client as a 'question' event so the user can see what was picked."""
+    data = request.get_json() or {}
+    transcript = str(data.get('transcript', '') or '').strip()
+    session_id = str(data.get('session_id', '') or '').strip()
+    messages = data.get('messages', [])
+    extracted = ''
+    if transcript:
+        extracted = _extract_question(transcript, _fw_history_text(session_id))
+        query = extracted or transcript
+    else:
+        query = ''
+        for m in reversed(messages):
+            if m.get('role') == 'user':
+                query = str(m.get('content', '')).strip()
+                break
     if not query:
         return jsonify({'error': 'No user query found'}), 400
+
+    # The blue "Q:" should always reflect what we actually searched. When extraction
+    # succeeds it's the clean question; when it drops (timeout/rate-limit) we still show
+    # the raw transcript that was searched instead of leaving the user with no Q at all.
+    shown_question = extracted or (transcript if transcript else '')
 
     def _sse(event: str, payload: dict) -> str:
         line = f"data: {_json.dumps(payload, ensure_ascii=False)}\n\n"
         return (f"event: {event}\n" + line) if event != 'message' else line
 
     def generate():
+        if shown_question:
+            yield _sse('question', {'text': shown_question})
         source_type, source, tier = 'feature_catalog', '', 0
         acc, last_sent = [], None
         try:
@@ -417,7 +514,11 @@ def chat_stream():
                             last_sent = payload
                             yield _sse('message', blocks)
                 elif kind == 'done':
-                    final = _answer_to_blocks(ev.get('answer', ''), source, tier, source_type)
+                    answer_text = ev.get('answer', '')
+                    final = _answer_to_blocks(answer_text, source, tier, source_type)
+                    # Persist this turn so the next follow-up resolves its references.
+                    if extracted and session_id:
+                        _fw_remember(session_id, extracted, answer_text)
                     yield _sse('done', final)
         except Exception as e:
             yield _sse('error', {'error': str(e)})
