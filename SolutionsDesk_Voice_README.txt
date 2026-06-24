@@ -14,7 +14,7 @@ SolutionsDesk Voice — how to use
    - Choose the mode button:  "Me + call" = hears you AND the other person,
                               "Me only"  = hears only you.
    - Click  > Start ,  speak your question (or let the client speak),
-     then click  Stop .
+     then click  Stop .Entire 2.2 section rolled up = #7 intro + #8–13 (all six features 2.2.1–2.2.6)
    - The transcript appears. Click "Send" to get the answer in the window.
 
 That's it. You don't need any keys, settings, or accounts.
