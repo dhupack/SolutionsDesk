@@ -3,12 +3,16 @@ Online Mode — always-on voice listening + a floating window that is HIDDEN fro
 screen sharing.
 
 Flow:
-    The window starts listening to the call audio the moment it opens (no Start/Stop).
-    As people speak, their words appear live in the TRANSCRIPT box (each finished
-    sentence is sent to the backend's /api/transcribe — Whisper — and appended).
+    The window starts listening the moment it opens (no Start/Stop). It captures BOTH
+    sides of the call on two independent streams — the call audio (loopback = "Them")
+    and your microphone ("You") — and each finished sentence appears live in the
+    TRANSCRIPT box, labeled by who spoke.
     Press ENTER (or click "Send to RAG") -> the current transcript is sent to
     /api/chat/stream and the colored answer streams into the ANSWER box, then the
     transcript clears so it's ready for the next question.
+    Toggle AUTO so the window answers the caller's questions automatically: when the
+    other person stops talking and their last turn looks like a question, it sends on
+    its own — no Enter needed.
 
 Screen-share privacy:
     On Windows 10 (2004+) / 11 the window calls SetWindowDisplayAffinity with
@@ -33,6 +37,8 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
+from urllib.parse import urlencode, quote
 
 import httpx
 import websocket   # websocket-client — live OpenAI Realtime transcription
@@ -96,6 +102,68 @@ REALTIME_WS_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
 STREAM_SR       = 24000             # OpenAI Realtime expects 24 kHz PCM16
 STREAM_BLOCK    = STREAM_SR // 10   # send audio in 0.1s chunks
 
+# ── Deepgram Nova-3 streaming (toggle via STT_ENGINE=deepgram) ────────────────────
+# When STT_ENGINE=deepgram, the window streams the SAME 24 kHz PCM16 loopback audio
+# straight to Deepgram's Nova-3 WebSocket (raw binary frames, not base64 JSON) and
+# authenticates with DEEPGRAM_API_KEY directly. Both live in .env next to this script.
+# Nova-3 "keyterm prompting" replaces the OpenAI WHISPER_PROMPT jargon hint. Default
+# engine stays "openai" so this is opt-in and the existing path is untouched.
+STT_ENGINE        = os.getenv("STT_ENGINE", "openai").strip().lower()
+DEEPGRAM_API_KEY  = os.getenv("DEEPGRAM_API_KEY", "").strip()
+# Language: "multi" = Nova-3 multilingual code-switching (English + Hindi/"Hinglish" in
+# the same sentence). "en" = English-only (slightly higher English accuracy, but Hindi
+# is mis-transcribed). Keyterm prompting (below) works in both. Default "multi".
+DEEPGRAM_LANGUAGE = os.getenv("DEEPGRAM_LANGUAGE", "multi").strip()
+DEEPGRAM_KEYTERMS = [
+    # Core domain nouns — these are the words actually spoken every call, and the ones
+    # the answer hinges on. Without biasing, Nova-3 mishears "trucks"/"clients" as
+    # "jets", which collapses RAG retrieval to general knowledge (no fleet match).
+    "truck", "trucks", "fleet", "fleet management", "vehicle", "vehicles",
+    "client", "clients", "logistics", "location tracking", "driver", "drivers",
+    # Axestrack/logistics jargon
+    "overspeeding", "over-speeding", "GPS tracking", "real-time vehicle tracking",
+    "geofencing", "ePOD", "electronic proof of delivery", "RFID",
+    "driver monitoring system", "driver fatigue", "dashcam", "ADAS", "DMS", "FMS",
+    "yard management", "weighbridge", "trip management", "route optimization",
+    "telematics", "SIM tracking", "consignment", "in-plant logistics", "XSWIFT", "CPL",
+]
+_dg_params = urlencode([
+    ("model", "nova-3"), ("language", DEEPGRAM_LANGUAGE),
+    ("encoding", "linear16"), ("sample_rate", str(STREAM_SR)),
+    ("channels", "1"), ("interim_results", "true"), ("smart_format", "true"),
+    ("punctuate", "true"),
+])
+DEEPGRAM_WS_URL = ("wss://api.deepgram.com/v1/listen?" + _dg_params
+                   + "".join(f"&keyterm={quote(k)}" for k in DEEPGRAM_KEYTERMS))
+
+# ── Both-sides capture + auto-answer ──────────────────────────────────────────────
+# We run TWO independent capture pipelines (the approach Natively uses): the call
+# audio (loopback, "them") and your microphone ("me"). Each gets its own STT session;
+# every finished utterance is tagged with which side spoke, so the transcript — and the
+# question the backend extracts — knows who asked. No diarization needed; the speaker
+# label is simply which pipeline produced the text.
+MIC_CAPTURE  = os.getenv("MIC_CAPTURE", "1").strip().lower() not in ("0", "false", "no")
+# Pin the "me" channel to a specific input (name substring, e.g. "Headset"). Empty =
+# system default mic. A dedicated HEADSET mic is the cleanest both-sides setup: it
+# captures only your voice, so there's no speaker echo to duck at all.
+MIC_DEVICE   = os.getenv("MIC_DEVICE", "").strip()
+MAX_SEGMENTS = 40            # rolling "hot window" cap — keeps the transcript focused
+_LABEL       = {"them": "Them:", "me": "You:"}
+
+# Echo ducking (software half-duplex): the remote voice comes out of your speakers and
+# leaks into the mic, so it would otherwise be transcribed twice. While the call audio
+# is active we DROP mic frames. This is the cheap stand-in for the hardware AEC that a
+# native app would use — wearing HEADPHONES removes the echo entirely (best quality).
+ECHO_GATE        = os.getenv("ECHO_GATE", "1").strip().lower() not in ("0", "false", "no")
+ECHO_RMS_THRESH  = float(os.getenv("ECHO_RMS_THRESH", "0.012"))  # loopback "is speaking" level
+ECHO_HANGOVER_MS = int(os.getenv("ECHO_HANGOVER_MS", "350"))     # keep ducking briefly after
+
+# Auto-answer: when ON, we wait for the caller to stop talking, then (if their last turn
+# looks like a question) answer automatically — no Enter needed. Manual Enter always
+# works too. Off by default (opt-in), toggled from the window.
+AUTO_ANSWER_DEFAULT = os.getenv("AUTO_ANSWER", "0").strip().lower() in ("1", "true", "yes")
+AUTO_SILENCE_MS     = int(os.getenv("AUTO_SILENCE_MS", "1200"))  # caller end-of-turn debounce
+
 
 def _auth_headers() -> dict:
     """Send an API key header only if one is configured (server may require it)."""
@@ -112,14 +180,28 @@ class Bridge(QObject):
 bridge = Bridge()
 
 # ── Live transcript state ────────────────────────────────────────────────────────
-# _committed = finalized utterances; _partial = the in-progress words currently
-# streaming in. The displayed transcript (and what Enter sends) is committed + partial.
-_committed   = ""
-_partial     = ""
+# _segments = finalized utterances, each tagged with who spoke ('them'/'me') and a
+# timestamp so the two channels interleave in time. _partials = the in-progress words
+# currently streaming in, per channel. The displayed transcript (and what Enter sends)
+# is the committed segments + the live partials, labeled by speaker.
+_segments: list = []                 # [{"who": "them"|"me", "text": str, "ts": float}]
+_partials = {"them": "", "me": ""}   # live, still-streaming text per channel
 _text_lock   = threading.Lock()
 _listening   = True             # master switch; False fully stops the stream
 _paused      = False            # user can pause/resume without dropping the connection
 _prompt_words: set = set()      # words from the biasing prompt — used to spot echoes
+_session_id  = uuid.uuid4().hex  # backend follow-up memory key; rotated on Clear
+
+# Echo ducking: timestamp until which the call audio counts as "active", so the mic
+# pipeline ducks its leaked echo. Written by the 'them' loop, read by the 'me' loop.
+_remote_active_until = 0.0
+
+# Auto-answer state.
+_auto_mode   = AUTO_ANSWER_DEFAULT
+_auto_timer  = None             # debounce timer; reset on every new 'them' segment
+_auto_lock   = threading.Lock()
+_answered_ts = 0.0              # ts of the last 'them' turn we auto-answered (no repeats)
+_asking      = False           # an auto-answer is in flight (don't overlap)
 
 
 # ── Hallucination filters ────────────────────────────────────────────────────────
@@ -162,16 +244,114 @@ def _looks_hallucinated(text: str) -> bool:
 
 
 def _current_transcript() -> str:
+    """The full live conversation, labeled by speaker and ordered in time:
+        Them: …
+        You: …
+    Includes both committed segments and the still-streaming partials (a partial that
+    already looks like a hallucination/echo is hidden)."""
     with _text_lock:
-        committed, partial = _committed, _partial
-    # Hide a still-streaming partial that already looks like a hallucination/echo.
-    if partial and _looks_hallucinated(partial):
-        partial = ""
-    return (f"{committed} {partial}".strip()) if partial else committed.strip()
+        segs = sorted(_segments, key=lambda s: s["ts"])
+        partials = dict(_partials)
+    lines = [f"{_LABEL[s['who']]} {s['text']}" for s in segs]
+    for who in ("them", "me"):
+        p = partials.get(who, "")
+        if p and not _looks_hallucinated(p):
+            lines.append(f"{_LABEL[who]} {p}")
+    return "\n".join(lines).strip()
 
 
 def _emit_transcript():
     bridge.transcript.emit(_current_transcript())
+
+
+# ── Capture sources + echo ducking ────────────────────────────────────────────────
+def _open_source(who: str):
+    """Open the audio source for one channel: the call audio (loopback) for 'them',
+    your microphone for 'me' (MIC_DEVICE override, else the system default)."""
+    spk = sc.default_speaker()
+    if who == "them":
+        return sc.get_microphone(spk.name, include_loopback=True)   # what you hear
+    if MIC_DEVICE:
+        try:
+            return sc.get_microphone(MIC_DEVICE, include_loopback=False)
+        except Exception as e:
+            bridge.status.emit(f"Mic '{MIC_DEVICE}' not found ({e}) — using default mic.")
+    return sc.get_microphone(sc.default_microphone().name)          # your mic
+
+
+def _skip_audio(who: str, block) -> bool:
+    """Whether to DROP this audio block before sending it to STT.
+
+    Also updates the shared 'remote is speaking' window from the loopback channel so the
+    mic can duck the echo. Returns True for paused, and (for the mic) while the call
+    audio is active — that's the software half-duplex echo gate."""
+    global _remote_active_until
+    if _paused:
+        return True
+    if who == "them":
+        if ECHO_GATE and block.size:
+            rms = float(np.sqrt(np.mean(np.square(block))))
+            if rms > ECHO_RMS_THRESH:
+                _remote_active_until = time.time() + ECHO_HANGOVER_MS / 1000.0
+        return False
+    # who == 'me': drop mic audio while the call audio is playing, so the remote voice
+    # leaking back through your speakers isn't transcribed a second time on this channel.
+    return bool(ECHO_GATE and time.time() < _remote_active_until)
+
+
+# ── Auto-answer (fires on the caller's end-of-turn) ───────────────────────────────
+_QUESTION_WORDS = ("how", "what", "why", "when", "where", "which", "who", "can",
+                   "could", "do", "does", "did", "is", "are", "will", "would",
+                   "should", "tell me", "explain", "any")
+
+
+def _looks_like_question(text: str) -> bool:
+    """Cheap local gate so we don't auto-fire on statements/backchannel. The backend's
+    extractor is the real judge; this just avoids spamming it."""
+    t = (text or "").strip().lower()
+    if not t:
+        return False
+    return ("?" in t) or any(t.startswith(w) for w in _QUESTION_WORDS)
+
+
+def _schedule_auto_ask():
+    """Debounce: (re)start a short silence timer; fire one auto-answer once the other
+    party stops talking. Reset on every new 'them' segment so we wait for a real pause."""
+    global _auto_timer
+    if not _auto_mode:
+        return
+    with _auto_lock:
+        if _auto_timer:
+            _auto_timer.cancel()
+        _auto_timer = threading.Timer(AUTO_SILENCE_MS / 1000.0, _maybe_auto_ask)
+        _auto_timer.daemon = True
+        _auto_timer.start()
+
+
+def _maybe_auto_ask():
+    """Auto-answer the caller's latest turn — only if it's a new, question-like 'them'
+    utterance we haven't already answered."""
+    global _answered_ts, _asking
+    if not _auto_mode or _asking:
+        return
+    with _text_lock:
+        them = [s for s in _segments if s["who"] == "them"]
+    if not them:
+        return
+    last = them[-1]
+    if last["ts"] <= _answered_ts or not _looks_like_question(last["text"]):
+        return
+    _answered_ts = last["ts"]
+    transcript = _current_transcript()
+
+    def _run():
+        global _asking
+        _asking = True
+        try:
+            ask_rag(transcript)        # don't clear in auto mode — keep the rolling window
+        finally:
+            _asking = False
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def _get_token() -> str:
@@ -187,17 +367,17 @@ def _get_token() -> str:
     return tok
 
 
-def _stream_once(token: str):
-    """Open one Realtime WebSocket session and stream the call audio until it ends."""
+def _stream_once(token: str, who: str):
+    """Open one Realtime WebSocket session and stream ONE channel's audio until it ends.
+    who = 'them' (call/loopback audio) or 'me' (your microphone)."""
     ws_open = threading.Event()
     closed  = threading.Event()
 
     def on_open(_ws):
         ws_open.set()
-        bridge.status.emit("● Live — transcribing the call in real time.")
+        bridge.status.emit("● Live — transcribing both sides of the call in real time.")
 
     def on_message(_ws, message):
-        global _committed, _partial
         try:
             ev = json.loads(message)
         except Exception:
@@ -205,16 +385,21 @@ def _stream_once(token: str):
         t = ev.get("type", "")
         if t.endswith("transcription.delta"):
             with _text_lock:
-                _partial += ev.get("delta", "")
+                _partials[who] += ev.get("delta", "")
             _emit_transcript()
         elif t.endswith("transcription.completed"):
             seg = (ev.get("transcript", "") or "").strip()
+            real = bool(seg) and not _looks_hallucinated(seg)
             with _text_lock:
                 # Drop prompt echoes / foreign-language hallucinations; keep real speech.
-                if seg and not _looks_hallucinated(seg):
-                    _committed = (f"{_committed} {seg}".strip()) if _committed else seg
-                _partial = ""
+                if real:
+                    _segments.append({"who": who, "text": seg, "ts": time.time()})
+                    if len(_segments) > MAX_SEGMENTS:
+                        del _segments[:-MAX_SEGMENTS]
+                _partials[who] = ""
             _emit_transcript()
+            if who == "them" and real:
+                _schedule_auto_ask()
         elif t == "error":
             msg = (ev.get("error") or {}).get("message", "stream error")
             bridge.status.emit(f"OpenAI: {msg}")
@@ -237,15 +422,14 @@ def _stream_once(token: str):
         except Exception: pass
         return
 
-    # Capture the call audio (loopback = "what you hear") and stream it as PCM16.
+    # Capture this channel's audio and stream it as PCM16.
     try:
-        speaker = sc.default_speaker()
-        source  = sc.get_microphone(speaker.name, include_loopback=True)
+        source = _open_source(who)
         with source.recorder(samplerate=STREAM_SR, channels=1) as rec:
             while _listening and not closed.is_set():
                 block = rec.record(numframes=STREAM_BLOCK).flatten()
-                if _paused:
-                    continue                    # drop audio while paused (connection stays up)
+                if _skip_audio(who, block):
+                    continue                    # paused or echo-ducked (connection stays up)
                 pcm16 = (np.clip(block, -1.0, 1.0) * 32767).astype("<i2").tobytes()
                 try:
                     ws.send(json.dumps({"type": "input_audio_buffer.append",
@@ -253,22 +437,120 @@ def _stream_once(token: str):
                 except Exception:
                     break
     except Exception as e:
-        bridge.status.emit(f"Audio capture error: {e}")
+        bridge.status.emit(f"Audio capture error ({who}): {e}")
     finally:
         try: ws.close()
         except Exception: pass
 
 
-def _run_stream():
-    """Keep a live transcription session up, reconnecting if it drops."""
+def _stream_once_deepgram(who: str):
+    """Open one Deepgram Nova-3 streaming session and stream ONE channel's audio until
+    it ends. who = 'them' (call/loopback audio) or 'me' (your microphone).
+
+    Differences from the OpenAI path: we authenticate with the API key directly, send
+    raw PCM16 *binary* frames (not base64 JSON), and each interim result is the full
+    current-segment text (replace the partial), with is_final marking a committed segment.
+    """
+    ws_open = threading.Event()
+    closed  = threading.Event()
+
+    def on_open(_ws):
+        ws_open.set()
+        bridge.status.emit("● Live — Deepgram Nova-3 transcribing both sides in real time.")
+
+    def on_message(_ws, message):
+        try:
+            ev = json.loads(message)
+        except Exception:
+            return
+        if ev.get("type") != "Results":
+            return
+        alt = (ev.get("channel", {}).get("alternatives") or [{}])[0]
+        seg = (alt.get("transcript") or "").strip()
+        if ev.get("is_final"):
+            with _text_lock:
+                if seg:
+                    _segments.append({"who": who, "text": seg, "ts": time.time()})
+                    if len(_segments) > MAX_SEGMENTS:
+                        del _segments[:-MAX_SEGMENTS]
+                _partials[who] = ""
+            _emit_transcript()
+            if who == "them" and seg:
+                _schedule_auto_ask()
+        else:
+            # Interim = full text of the in-progress segment → replace, don't append.
+            with _text_lock:
+                _partials[who] = seg
+            _emit_transcript()
+
+    def on_close(_ws, *_a):
+        closed.set()
+
+    def on_error(_ws, err):
+        bridge.status.emit(f"Deepgram error: {err}")
+        closed.set()
+
+    ws = websocket.WebSocketApp(
+        DEEPGRAM_WS_URL,
+        header=[f"Authorization: Token {DEEPGRAM_API_KEY}"],
+        on_open=on_open, on_message=on_message, on_close=on_close, on_error=on_error,
+    )
+    threading.Thread(target=ws.run_forever, daemon=True).start()
+    if not ws_open.wait(timeout=12):
+        try: ws.close()
+        except Exception: pass
+        return
+
+    # Capture this channel's audio and stream it as raw PCM16.
+    try:
+        source = _open_source(who)
+        with source.recorder(samplerate=STREAM_SR, channels=1) as rec:
+            while _listening and not closed.is_set():
+                block = rec.record(numframes=STREAM_BLOCK).flatten()
+                if _skip_audio(who, block):
+                    # No audio while paused / echo-ducked — keep Deepgram's socket alive
+                    # (it drops the connection after ~10s of silence otherwise).
+                    try: ws.send(json.dumps({"type": "KeepAlive"}))
+                    except Exception: break
+                    continue
+                pcm16 = (np.clip(block, -1.0, 1.0) * 32767).astype("<i2").tobytes()
+                try:
+                    ws.send(pcm16, opcode=websocket.ABNF.OPCODE_BINARY)
+                except Exception:
+                    break
+    except Exception as e:
+        bridge.status.emit(f"Audio capture error ({who}): {e}")
+    finally:
+        try:
+            ws.send(json.dumps({"type": "CloseStream"}))
+            ws.close()
+        except Exception:
+            pass
+
+
+def _run_stream(who: str):
+    """Keep a live transcription session up for one channel, reconnecting if it drops.
+    who = 'them' (call/loopback audio) or 'me' (your microphone)."""
     while _listening:
+        # Deepgram path: connect directly with the key (no backend token needed).
+        if STT_ENGINE == "deepgram":
+            if not DEEPGRAM_API_KEY:
+                bridge.status.emit("DEEPGRAM_API_KEY not set — add it to .env, then restart.")
+                time.sleep(5)
+                continue
+            _stream_once_deepgram(who)
+            if _listening:
+                bridge.status.emit("Reconnecting…")
+                time.sleep(1)
+            continue
+        # Default path: OpenAI Realtime via a short-lived backend token.
         try:
             token = _get_token()
         except Exception as e:
             bridge.status.emit(f"Token error: {e} — retrying…")
             time.sleep(3)
             continue
-        _stream_once(token)
+        _stream_once(token, who)
         if _listening:
             bridge.status.emit("Reconnecting…")
             time.sleep(1)
@@ -361,14 +643,28 @@ def blocks_to_html(data: dict) -> str:
     return "".join(parts) or '<p style="color:#94a3b8;">(empty answer)</p>'
 
 
-# ── Send the current transcript to the RAG backend ──────────────────────────────
-def ask_rag(query: str):
-    query = (query or "").strip()
-    if not query:
+def _q_header(q: str) -> str:
+    """Small 'Q: …' banner showing the question the backend extracted from the transcript."""
+    if not q:
+        return ""
+    return (f'<div style="margin:0 0 10px 0;padding:7px 10px;background:#eef2ff;'
+            f'border-left:3px solid #6366f1;border-radius:6px;color:#3730a3;'
+            f'font-size:11px;"><b>Q:</b> {_esc(q)}</div>')
+
+
+# ── Send the transcript to the backend (which extracts the relevant question) ─────
+def ask_rag(transcript: str):
+    transcript = (transcript or "").strip()
+    if not transcript:
         bridge.answer.emit("(Nothing to send yet — let the other person speak first.)")
         return
     bridge.answer.emit("Thinking…")
-    payload = {"messages": [{"role": "user", "content": query}]}
+    # Send the whole transcript; the backend extracts the latest relevant question and
+    # streams the answer. session_id lets the backend remember prior turns so follow-ups
+    # resolve even though we clear the box each Enter. (messages[] is an older-backend fallback.)
+    payload = {"transcript": transcript, "session_id": _session_id,
+               "messages": [{"role": "user", "content": transcript}]}
+    picked = ""
     try:
         got_any = False
         with httpx.stream("POST", RAG_STREAM_URL, json=payload,
@@ -391,8 +687,12 @@ def ask_rag(query: str):
                         if ev == "error":
                             bridge.answer.emit(f"Error: {obj.get('error', 'stream error')}")
                             return
+                        if ev == "question":       # the relevant part the backend picked
+                            picked = obj.get("text", "")
+                            bridge.answer.emit(_q_header(picked) + '<p style="color:#64748b;">Thinking…</p>')
+                            continue
                         got_any = True
-                        bridge.answer.emit(blocks_to_html(obj))   # partial + final both render
+                        bridge.answer.emit(_q_header(picked) + blocks_to_html(obj))
                     continue
                 if line.startswith("event:"):
                     event = line[6:].strip()
@@ -459,6 +759,8 @@ class FloatingWindow(QWidget):
             QPushButton#mini{background:#eef2ff;color:#4338ca;font-size:10px;font-weight:700;
                   border:1px solid #e0e7ff;border-radius:7px;padding:4px 10px;}
             QPushButton#mini:hover{background:#e0e7ff;}
+            QPushButton#autoOn{background:#16a34a;color:#fff;font-size:10px;font-weight:700;
+                  border:1px solid #15803d;border-radius:7px;padding:4px 10px;}
         """)
         outer = QVBoxLayout(self); outer.setContentsMargins(0, 0, 0, 0); outer.addWidget(card)
 
@@ -476,9 +778,13 @@ class FloatingWindow(QWidget):
         self.status.setObjectName("status"); self.status.setWordWrap(True)
         v.addWidget(self.status)
 
-        # Transcript header + live controls (Pause / Clear)
+        # Transcript header + live controls (Auto / Pause / Clear)
         caphead = QHBoxLayout()
         capL = QLabel("LIVE TRANSCRIPT"); capL.setObjectName("capLabel")
+        self.autob = QPushButton("⚡ Auto: On" if _auto_mode else "⚡ Auto: Off")
+        self.autob.setObjectName("autoOn" if _auto_mode else "mini")
+        self.autob.setToolTip("Auto-answer the caller's questions (no Enter needed)")
+        self.autob.clicked.connect(self.on_auto)
         self.pauseb = QPushButton("⏸ Pause"); self.pauseb.setObjectName("mini")
         self.pauseb.setToolTip("Pause / resume listening")
         self.pauseb.clicked.connect(self.on_pause)
@@ -486,7 +792,7 @@ class FloatingWindow(QWidget):
         self.clearb.setToolTip("Clear the current transcript")
         self.clearb.clicked.connect(self.on_clear)
         caphead.addWidget(capL); caphead.addStretch(1)
-        caphead.addWidget(self.pauseb); caphead.addWidget(self.clearb)
+        caphead.addWidget(self.autob); caphead.addWidget(self.pauseb); caphead.addWidget(self.clearb)
         v.addLayout(caphead)
 
         self.caption = QTextEdit(); self.caption.setReadOnly(True); self.caption.setFixedHeight(110)
@@ -518,21 +824,41 @@ class FloatingWindow(QWidget):
         sb = self.caption.verticalScrollBar(); sb.setValue(sb.maximum())
 
     def on_send(self):
-        global _committed, _partial
-        query = _current_transcript()
-        with _text_lock:
-            _committed, _partial = "", ""     # clear so the next question starts fresh
-        self.caption.clear()
-        if not query:
+        # Send the whole transcript, then clear the box so the next turn starts fresh.
+        # The backend remembers this turn (via session_id), so follow-ups still resolve.
+        transcript = _current_transcript()
+        if not transcript.strip():
             self.status.setText("Nothing to send yet — wait for some speech.")
             return
-        threading.Thread(target=ask_rag, args=(query,), daemon=True).start()
+        threading.Thread(target=ask_rag, args=(transcript,), daemon=True).start()
+        with _text_lock:
+            _segments.clear()
+            _partials["them"] = _partials["me"] = ""
+        self.caption.clear()
 
     def on_clear(self):
-        global _committed, _partial
+        # Full reset: wipe the box AND start a new session so the backend forgets
+        # the previous conversation (no follow-up carryover into the next topic).
+        global _session_id, _answered_ts
         with _text_lock:
-            _committed, _partial = "", ""
+            _segments.clear()
+            _partials["them"] = _partials["me"] = ""
+        _session_id = uuid.uuid4().hex
+        _answered_ts = 0.0
         self.caption.clear()
+        self.status.setText("Cleared — new conversation.")
+
+    def on_auto(self):
+        # Toggle auto-answer: when ON, the window answers the caller's questions on its
+        # own (debounced on their end-of-turn). Manual Enter keeps working either way.
+        global _auto_mode
+        _auto_mode = not _auto_mode
+        self.autob.setText("⚡ Auto: On" if _auto_mode else "⚡ Auto: Off")
+        self.autob.setObjectName("autoOn" if _auto_mode else "mini")
+        self.autob.style().unpolish(self.autob); self.autob.style().polish(self.autob)
+        self.status.setText(
+            "⚡ Auto-answer ON — I'll answer the caller's questions automatically."
+            if _auto_mode else "Auto-answer off — press Enter to ask.")
 
     def on_pause(self):
         global _paused
@@ -613,8 +939,12 @@ def main():
     _apply_hide()
     QTimer.singleShot(0, _apply_hide)
 
-    # Start the always-on live transcription stream.
-    threading.Thread(target=_run_stream, daemon=True).start()
+    # Start the always-on live transcription — one stream per side of the call:
+    # 'them' = the call audio (loopback), 'me' = your microphone. Each runs its own STT
+    # session and tags its text, so the transcript knows who spoke (no diarization).
+    threading.Thread(target=_run_stream, args=("them",), daemon=True).start()
+    if MIC_CAPTURE:
+        threading.Thread(target=_run_stream, args=("me",), daemon=True).start()
 
     sys.exit(app.exec())
 

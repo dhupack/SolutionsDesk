@@ -229,6 +229,12 @@ class RAGWorkflow:
         elif proposal_context:
             source_type = "feature_catalog"
             tier = 2
+        elif best_score >= _FEATURE_STRONG:
+            # Strong feature match, but an implementation-phrased query ("solution
+            # for …") with no matching proposal. Don't fall through to generic
+            # knowledge — answer from the feature that clearly matched.
+            source_type = "feature_catalog"
+            tier = 2
         else:
             source_type = "llm_knowledge"
             tier = 3
@@ -252,7 +258,10 @@ class RAGWorkflow:
             source_instruction = (
                 "The past proposals contain more specific information than the features for this query.\n"
                 "Answer primarily from the proposal content above. Extract specific details into proposal_findings.\n"
-                "Still include relevant catalog features in solutions where they map to what was done.\n\n"
+                "ALSO populate solutions with the relevant catalog features for this operational area shown "
+                "above — include the bucket-mate features marked 'RELATED · same bucket', not only the ones "
+                "the proposal happened to mention — so the reader sees the full toolkit for the area, not just "
+                "what one client did. Stay within features genuinely relevant to the query; do not pad.\n\n"
                 "Use this JSON schema:\n" + _SCHEMA_PROPOSAL
             )
         else:
