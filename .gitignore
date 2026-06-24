@@ -12,7 +12,8 @@ build/
 # proposal index rollback backups
 embeddings/*.bak
 
-# profiling / trace output
-importtime.log
-trace.log
-trace2.log
+# logs (build, profiling, trace) — all regenerable, never commit
+*.log
+
+# local feedback log (ephemeral; durable copy goes to the Google Sheet)
+feedback.jsonl
