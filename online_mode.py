@@ -735,7 +735,7 @@ class FloatingWindow(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setGeometry(60, 60, 470, 640)
-        self.setWindowOpacity(0.97)          # subtle see-through, like the web chat
+        self.setWindowOpacity(0.99)          # subtle see-through, like the web chat
         self._drag = None
 
         card = QFrame(self)
@@ -759,8 +759,6 @@ class FloatingWindow(QWidget):
             QPushButton#mini{background:#eef2ff;color:#4338ca;font-size:10px;font-weight:700;
                   border:1px solid #e0e7ff;border-radius:7px;padding:4px 10px;}
             QPushButton#mini:hover{background:#e0e7ff;}
-            QPushButton#autoOn{background:#16a34a;color:#fff;font-size:10px;font-weight:700;
-                  border:1px solid #15803d;border-radius:7px;padding:4px 10px;}
         """)
         outer = QVBoxLayout(self); outer.setContentsMargins(0, 0, 0, 0); outer.addWidget(card)
 
@@ -778,13 +776,9 @@ class FloatingWindow(QWidget):
         self.status.setObjectName("status"); self.status.setWordWrap(True)
         v.addWidget(self.status)
 
-        # Transcript header + live controls (Auto / Pause / Clear)
+        # Transcript header + live controls (Pause / Clear)
         caphead = QHBoxLayout()
         capL = QLabel("LIVE TRANSCRIPT"); capL.setObjectName("capLabel")
-        self.autob = QPushButton("⚡ Auto: On" if _auto_mode else "⚡ Auto: Off")
-        self.autob.setObjectName("autoOn" if _auto_mode else "mini")
-        self.autob.setToolTip("Auto-answer the caller's questions (no Enter needed)")
-        self.autob.clicked.connect(self.on_auto)
         self.pauseb = QPushButton("⏸ Pause"); self.pauseb.setObjectName("mini")
         self.pauseb.setToolTip("Pause / resume listening")
         self.pauseb.clicked.connect(self.on_pause)
@@ -792,7 +786,7 @@ class FloatingWindow(QWidget):
         self.clearb.setToolTip("Clear the current transcript")
         self.clearb.clicked.connect(self.on_clear)
         caphead.addWidget(capL); caphead.addStretch(1)
-        caphead.addWidget(self.autob); caphead.addWidget(self.pauseb); caphead.addWidget(self.clearb)
+        caphead.addWidget(self.pauseb); caphead.addWidget(self.clearb)
         v.addLayout(caphead)
 
         self.caption = QTextEdit(); self.caption.setReadOnly(True); self.caption.setFixedHeight(110)
@@ -847,18 +841,6 @@ class FloatingWindow(QWidget):
         _answered_ts = 0.0
         self.caption.clear()
         self.status.setText("Cleared — new conversation.")
-
-    def on_auto(self):
-        # Toggle auto-answer: when ON, the window answers the caller's questions on its
-        # own (debounced on their end-of-turn). Manual Enter keeps working either way.
-        global _auto_mode
-        _auto_mode = not _auto_mode
-        self.autob.setText("⚡ Auto: On" if _auto_mode else "⚡ Auto: Off")
-        self.autob.setObjectName("autoOn" if _auto_mode else "mini")
-        self.autob.style().unpolish(self.autob); self.autob.style().polish(self.autob)
-        self.status.setText(
-            "⚡ Auto-answer ON — I'll answer the caller's questions automatically."
-            if _auto_mode else "Auto-answer off — press Enter to ask.")
 
     def on_pause(self):
         global _paused
