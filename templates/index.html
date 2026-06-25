@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SolutionsDesk — Feature Intelligence</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%232563eb'/><g fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m5 13.5 7-6.5 7 6.5'/><path d='m5 18 7-6.5 7 6.5'/></g></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -243,16 +244,6 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
               <span>Ask</span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
-            <button class="sd-caret" id="modeCaret" title="Modes">
-              <span>MODES</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-            <div class="sd-mode-menu" id="modeMenu" hidden>
-              <button class="sd-mode-item" id="onlineModeBtn">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-                <span>Online <em>· Voice window</em></span>
-              </button>
-            </div>
           </div>
         </div>
         <div class="sd-composer-hint">SolutionsDesk answers from the live feature catalog — verify before committing to a client.</div>
@@ -628,22 +619,6 @@ ta.addEventListener('input',function(){
 });
 ta.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend();} });
 document.getElementById('sendBtn').addEventListener('click',()=>doSend());
-
-// ── Mode dropdown (Online Mode) ──────────────────────────────────────────────
-const modeCaret=document.getElementById('modeCaret'), modeMenu=document.getElementById('modeMenu');
-modeCaret?.addEventListener('click',e=>{e.stopPropagation();modeMenu.hidden=!modeMenu.hidden;});
-document.addEventListener('click',e=>{ if(modeMenu && !modeMenu.hidden && !e.target.closest('.sd-send-group')) modeMenu.hidden=true; });
-document.getElementById('onlineModeBtn')?.addEventListener('click',async()=>{
-  modeMenu.hidden=true;
-  showToast('Opening voice window…');
-  try{
-    const res=await fetch('/api/online-mode/start',{method:'POST'});
-    const data=await res.json();
-    if(data.status==='started')        showToast('Voice window opened — click ▶ Start and speak your question.');
-    else if(data.status==='already_running') showToast('Voice window is already open.');
-    else                               showToast('Could not open voice window: '+(data.error||'unknown error'));
-  }catch(err){ showToast('Could not open voice window: '+err.message); }
-});
 
 // ── Voice input (Web Speech API — free, in-browser; Chrome/Edge) ─────────────
 (function(){

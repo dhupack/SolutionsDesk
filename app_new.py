@@ -816,36 +816,59 @@ WHISPER_PROMPT = (
 )
 
 
+# Nova-3 "keyterm prompting" — the batch-API equivalent of WHISPER_PROMPT above.
+# Same domain vocabulary the voice window streams with (online_mode.py), so the in-page
+# mic hears "trucks"/"overspeeding"/"XSWIFT" instead of "jets"/"oversteering"/etc.
+DEEPGRAM_KEYTERMS = [
+    "truck", "trucks", "fleet", "fleet management", "vehicle", "vehicles",
+    "client", "clients", "logistics", "location tracking", "driver", "drivers",
+    "overspeeding", "over-speeding", "GPS tracking", "real-time vehicle tracking",
+    "geofencing", "ePOD", "electronic proof of delivery", "RFID",
+    "driver monitoring system", "driver fatigue", "dashcam", "ADAS", "DMS", "FMS",
+    "yard management", "weighbridge", "trip management", "route optimization",
+    "telematics", "SIM tracking", "consignment", "in-plant logistics", "XSWIFT", "CPL",
+]
+
+
 @app.route('/api/transcribe', methods=['POST'])
 def transcribe():
-    """Speech-to-text for the in-page mic via OpenAI Whisper.
+    """Speech-to-text for the in-page mic via Deepgram Nova-3 (pre-recorded API).
     Receives an audio blob (multipart 'audio') + optional 'lang', returns {text}."""
     import httpx
-    key = os.getenv('OPENAI_API_KEY', '')
+    from urllib.parse import urlencode, quote
+    key = os.getenv('DEEPGRAM_API_KEY', '').strip()
     if not key:
-        return jsonify({'error': 'OPENAI_API_KEY not set on server'}), 500
+        return jsonify({'error': 'DEEPGRAM_API_KEY not set on server'}), 500
     f = request.files.get('audio')
     if f is None:
         return jsonify({'error': 'no audio uploaded'}), 400
-    # gpt-4o-transcribe is markedly more accurate than the legacy whisper-1
-    # (better with accents and the logistics jargon below). Same endpoint/params;
-    # override with OPENAI_WHISPER_MODEL if you want whisper-1 or the mini variant.
-    model = os.getenv('OPENAI_WHISPER_MODEL', 'gpt-4o-transcribe')
-    lang = (request.form.get('lang') or '').strip()  # 'en' | 'hi' | ''
-    data = {'model': model, 'prompt': WHISPER_PROMPT}
-    if lang:
-        data['language'] = lang
-    files = {'file': (f.filename or 'audio.webm', f.stream, f.mimetype or 'audio/webm')}
+    model = os.getenv('DEEPGRAM_MODEL', 'nova-3')
+    # 'en' = English-only (best English accuracy); 'hi'/blank = multilingual code-switch
+    # (handles Hindi + Hinglish), matching the voice window's default.
+    lang = (request.form.get('lang') or '').strip().lower()
+    dg_lang = 'en' if lang == 'en' else os.getenv('DEEPGRAM_LANGUAGE', 'multi')
+    params = urlencode([
+        ('model', model), ('language', dg_lang),
+        ('smart_format', 'true'), ('punctuate', 'true'),
+    ]) + ''.join(f'&keyterm={quote(k)}' for k in DEEPGRAM_KEYTERMS)
+    url = 'https://api.deepgram.com/v1/listen?' + params
+    audio = f.read()
+    if not audio:
+        return jsonify({'error': 'empty audio'}), 400
     try:
         r = httpx.post(
-            'https://api.openai.com/v1/audio/transcriptions',
-            headers={'Authorization': f'Bearer {key}'},
-            data=data, files=files, timeout=120,
+            url,
+            headers={'Authorization': f'Token {key}',
+                     'Content-Type': f.mimetype or 'audio/webm'},
+            content=audio, timeout=120,
         )
         r.raise_for_status()
-        return jsonify({'text': (r.json().get('text') or '').strip()})
+        alts = (r.json().get('results', {}).get('channels', [{}])[0]
+                .get('alternatives', [{}]))
+        text = (alts[0].get('transcript') if alts else '') or ''
+        return jsonify({'text': text.strip()})
     except httpx.HTTPStatusError as e:
-        return jsonify({'error': f'whisper {e.response.status_code}: {e.response.text[:200]}'}), 502
+        return jsonify({'error': f'deepgram {e.response.status_code}: {e.response.text[:200]}'}), 502
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
