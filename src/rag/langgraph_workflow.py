@@ -27,6 +27,20 @@ _FEATURE_STRONG   = 0.43   # clear, direct feature match wins Tier 1
 _PROPOSAL_STRONG  = 0.43   # genuine proposal match (non-impl query) → proposal tier
 _PROPOSAL_PRESENT = 0.36   # below this the proposal is noise → ignore (lets Tier 3 trigger)
 
+# A message that is ENTIRELY a greeting / thanks / acknowledgement carries no product
+# intent. Caught before the rewrite step — otherwise the rewriter invents a query
+# ("hi" → "logistics software") and the catalog returns irrelevant solutions.
+_SMALLTALK_RE = re.compile(
+    r'^\s*(hi+|hey+|he+llo+|helo|yo+|sup|hola|namaste|greetings|'
+    r'good\s*(morning|afternoon|evening|day|night)|'
+    r'thanks?( you| a lot)?|thank you|thx|ty|'
+    r'ok(ay)?|kk?|cool|nice|great|awesome|got it|'
+    r'bye|goodbye|see\s*ya|good\s*night)'
+    r'(\s+(there|everyone|team|all|guys|folks))?'
+    r'[\s!.,?]*$',
+    re.IGNORECASE,
+)
+
 # ── Per-source JSON schemas ────────────────────────────────────────────────────
 _SCHEMA_FEATURE = '''{
   "type": "pitch" | "factual",
@@ -134,6 +148,21 @@ class RAGWorkflow:
     def _build_generation(self, original_query: str) -> dict:
         """Retrieve, route, and build the generation prompt — everything except the
         final LLM call. Shared by the blocking node and the streaming path."""
+        # ── Step 0: Greeting / small-talk short-circuit ────────────────────────
+        # No product intent → skip rewrite + retrieval entirely and reply
+        # conversationally. (Plain text → renders as a paragraph, no solutions.)
+        if _SMALLTALK_RE.match(original_query or ""):
+            greeting_prompt = (
+                "You are SolutionsDesk, Axestrack's logistics product assistant. The user "
+                "sent a greeting or small talk, not a product question. Reply in ONE short, "
+                "warm sentence and invite them to ask about a feature, a client request, or a "
+                "product capability. Plain text only — no JSON, no lists, no feature names.\n\n"
+                f"User message: {original_query}"
+            )
+            logger.info(f"Small-talk short-circuit: '{original_query}'")
+            return {"prompt": greeting_prompt, "source_type": "greeting",
+                    "source": "[Greeting]", "tier": 0}
+
         # ── Step 1: Rewrite query for better retrieval ─────────────────────────
         retrieval_query = self._rewrite_query(original_query)
 
