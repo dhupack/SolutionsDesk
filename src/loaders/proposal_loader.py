@@ -1,6 +1,7 @@
 import re
 import logging
 import json
+import uuid
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import faiss
@@ -14,8 +15,16 @@ from config import (
     RAW_PROPOSALS_DIR,
     PROPOSAL_FAISS_INDEX_PATH,
     PROPOSAL_METADATA_PATH,
+    PROPOSAL_VECTOR_BACKEND,
+    QDRANT_URL,
+    QDRANT_API_KEY,
+    QDRANT_PROPOSAL_COLLECTION,
     get_embeddings,
 )
+
+# Stable namespace so a chunk (source_file + chunk_index) always maps to the same
+# Qdrant point ID → re-embedding a doc overwrites its chunks in place.
+_QDRANT_NS = uuid.UUID("6f9619ff-8b86-d011-b42d-00cf4fc964ff")
 
 logger = logging.getLogger(__name__)
 
@@ -489,11 +498,18 @@ def _is_excluded_source(file_path: Path) -> bool:
 class ProposalLoader:
 
     def __init__(self):
+        self.backend = PROPOSAL_VECTOR_BACKEND
         self.embeddings = get_embeddings()
         self.faiss_index = None
         self.metadata = []
         # group key -> ordered list of metadata indices, for sibling rollup
         self._parent_map: Dict[str, List[int]] = {}
+        self._section_map: Dict[Tuple, int] = {}
+        self._id_to_pos: Dict[str, int] = {}
+        self._qdrant = None
+        if self.backend == "qdrant":
+            from qdrant_client import QdrantClient
+            self._qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=30)
 
     def chunk_file(self, file_path: Path, client_name: str) -> List[Tuple[str, Dict]]:
         """Heading-aware chunking for a single source file. Returns (embed_text, meta)."""
@@ -607,7 +623,88 @@ class ProposalLoader:
             json.dump(self.metadata, f, indent=2, default=str)
         logger.info("Proposal index saved")
 
+    # ── Qdrant backend ──────────────────────────────────────────────────────────
+    def _ensure_qdrant_collection(self, dim: int):
+        from qdrant_client.models import Distance, VectorParams
+        if not self._qdrant.collection_exists(QDRANT_PROPOSAL_COLLECTION):
+            self._qdrant.create_collection(
+                QDRANT_PROPOSAL_COLLECTION,
+                vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
+            )
+            logger.info(f"Created Qdrant collection '{QDRANT_PROPOSAL_COLLECTION}' (dim={dim})")
+
+    def _upsert_qdrant(self, chunks: List[Tuple[str, Dict]]) -> bool:
+        from qdrant_client.models import PointStruct
+        text_only = [c[0] for c in chunks]
+        logger.info(f"Embedding {len(text_only)} proposal chunks for Qdrant...")
+        vectors = self.embeddings.embed_documents(text_only)
+        dim = len(vectors[0])
+        if self._qdrant.collection_exists(QDRANT_PROPOSAL_COLLECTION):
+            self._qdrant.delete_collection(QDRANT_PROPOSAL_COLLECTION)   # full snapshot
+        self._ensure_qdrant_collection(dim)
+        points = []
+        for vec, (_, m) in zip(vectors, chunks):
+            pid = str(uuid.uuid5(_QDRANT_NS, f"{m.get('source_file')}:{m.get('chunk_index')}"))
+            points.append(PointStruct(id=pid, vector=[float(x) for x in vec], payload=m))
+        # Upsert in batches to stay well under request-size limits.
+        for i in range(0, len(points), 128):
+            self._qdrant.upsert(QDRANT_PROPOSAL_COLLECTION, points=points[i:i+128])
+        self.metadata = [m for _, m in chunks]
+        logger.info(f"Upserted {len(points)} proposal chunks to Qdrant '{QDRANT_PROPOSAL_COLLECTION}'")
+        return True
+
+    def _load_qdrant_payloads(self):
+        """Scroll all chunk payloads (metadata only — NOT vectors) into memory so the
+        sibling-rollup grouped search works exactly like the FAISS path."""
+        self.metadata = []
+        self._id_to_pos = {}
+        try:
+            if not self._qdrant.collection_exists(QDRANT_PROPOSAL_COLLECTION):
+                logger.warning(f"Qdrant collection '{QDRANT_PROPOSAL_COLLECTION}' does not exist yet")
+                self._build_parent_map()
+                return
+            offset = None
+            while True:
+                pts, offset = self._qdrant.scroll(
+                    QDRANT_PROPOSAL_COLLECTION, with_payload=True, with_vectors=False,
+                    limit=256, offset=offset,
+                )
+                for p in pts:
+                    self._id_to_pos[p.id] = len(self.metadata)
+                    self.metadata.append(p.payload)
+                if offset is None:
+                    break
+        except Exception as e:
+            logger.error(f"Failed to scroll Qdrant proposal payloads: {e}")
+        self._build_parent_map()
+        logger.info(f"Loaded {len(self.metadata)} proposal payloads from Qdrant")
+
+    def _search_qdrant(self, query_embedding, k: int) -> List[Dict]:
+        try:
+            hits = self._qdrant.query_points(
+                collection_name=QDRANT_PROPOSAL_COLLECTION,
+                query=[float(x) for x in query_embedding],
+                limit=k, with_payload=True,
+            ).points
+        except Exception as e:
+            logger.error(f"Qdrant proposal search failed: {e}")
+            return []
+        results = []
+        for h in hits:
+            pos = self._id_to_pos.get(h.id)
+            meta = self.metadata[pos] if pos is not None else h.payload
+            results.append({"similarity_score": float(h.score), "metadata": meta})
+        return results
+
+    def is_ready(self) -> bool:
+        if self.backend == "qdrant":
+            return bool(self.metadata)   # populated by load_index() scroll
+        return bool(self.faiss_index is not None and self.metadata)
+
     def load_index(self):
+        if self.backend == "qdrant":
+            self._load_qdrant_payloads()
+            return
         if PROPOSAL_FAISS_INDEX_PATH.exists():
             self.faiss_index = faiss.read_index(str(PROPOSAL_FAISS_INDEX_PATH))
         if PROPOSAL_METADATA_PATH.exists():
@@ -618,6 +715,8 @@ class ProposalLoader:
 
     def search_vec(self, query_embedding, k: int = 3) -> List[Dict]:
         """Search using a pre-computed query vector (lets the caller embed once)."""
+        if self.backend == "qdrant":
+            return self._search_qdrant(query_embedding, k)
         if self.faiss_index is None or not self.metadata:
             return []
         qe = np.array(query_embedding).astype('float32').reshape(1, -1)
@@ -672,7 +771,7 @@ class ProposalLoader:
         return ordered
 
     def search(self, query_text: str, k: int = 3) -> List[Dict]:
-        if self.faiss_index is None or not self.metadata:
+        if not self.is_ready():
             return []
         return self.search_vec(self.embeddings.embed_query(query_text), k)
 
@@ -681,6 +780,8 @@ class ProposalLoader:
         if not chunks:
             logger.warning("No chunks extracted from raw proposal files")
             return False
+        if self.backend == "qdrant":
+            return self._upsert_qdrant(chunks)
         self.create_embeddings(chunks)
         self.save_index()
         return True

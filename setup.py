@@ -2,7 +2,8 @@
 """
 Setup script for RAG pipeline initialization.
 - Downloads proposal documents from Google Drive (if not already present)
-- Builds FAISS indices for features and proposals directly from raw files
+- Builds the feature + proposal vector indexes from the sources. Destination is
+  set by FEATURE_VECTOR_BACKEND / PROPOSAL_VECTOR_BACKEND (faiss files or Qdrant).
 """
 
 import logging
@@ -14,7 +15,9 @@ from src.loaders.proposal_loader import ProposalLoader
 from config import (
     RAW_PROPOSALS_DIR,
     FEATURE_SHEET_DIR,
-    GOOGLE_DRIVE_FOLDER_ID
+    GOOGLE_DRIVE_FOLDER_ID,
+    FEATURE_VECTOR_BACKEND,
+    PROPOSAL_VECTOR_BACKEND,
 )
 
 logging.basicConfig(
@@ -79,7 +82,7 @@ def step2_build_feature_index():
     Step 2: Build FAISS index for feature sheet Excel files.
     """
     print("\n" + "=" * 80)
-    print("STEP 2: Build FAISS Index for Feature Sheet")
+    print(f"STEP 2: Build Feature Index  [backend: {FEATURE_VECTOR_BACKEND}]")
     print("=" * 80)
 
     excel_files = list(FEATURE_SHEET_DIR.glob("*.xlsx")) + list(FEATURE_SHEET_DIR.glob("*.xls"))
@@ -95,7 +98,7 @@ def step2_build_feature_index():
         feature_loader = FeatureLoader()
         if feature_loader.build_and_save():
             logger.info(f"Feature index built with {len(feature_loader.metadata)} features")
-            print(f"Feature FAISS index created successfully")
+            print(f"Feature index ({FEATURE_VECTOR_BACKEND}) created successfully")
             return True
         else:
             logger.error("Failed to build feature index")
@@ -111,7 +114,7 @@ def step3_build_proposal_index():
     No markdown extraction step needed.
     """
     print("\n" + "=" * 80)
-    print("STEP 3: Build FAISS Index for Proposal Documents (from raw files)")
+    print(f"STEP 3: Build Proposal Index from raw files  [backend: {PROPOSAL_VECTOR_BACKEND}]")
     print("=" * 80)
 
     supported = ['.pdf', '.pptx', '.ppt', '.docx', '.doc']
@@ -128,7 +131,7 @@ def step3_build_proposal_index():
         proposal_loader = ProposalLoader()
         if proposal_loader.build_and_save():
             logger.info(f"Proposal index built with {len(proposal_loader.metadata)} chunks")
-            print(f"Proposal FAISS index created successfully")
+            print(f"Proposal index ({PROPOSAL_VECTOR_BACKEND}) created successfully")
             return True
         else:
             logger.error("Failed to build proposal index")

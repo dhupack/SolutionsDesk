@@ -18,7 +18,7 @@ class TierRetrieval:
     def initialize_feature_index(self) -> bool:
         try:
             self.feature_loader.load_index()
-            if self.feature_loader.faiss_index and self.feature_loader.metadata:
+            if self.feature_loader.is_ready():
                 self.feature_loader_initialized = True
                 return True
         except Exception as e:
@@ -28,7 +28,7 @@ class TierRetrieval:
     def initialize_proposal_index(self) -> bool:
         try:
             self.proposal_loader.load_index()
-            if self.proposal_loader.faiss_index and self.proposal_loader.metadata:
+            if self.proposal_loader.is_ready():
                 self.proposal_loader_initialized = True
                 return True
         except Exception as e:

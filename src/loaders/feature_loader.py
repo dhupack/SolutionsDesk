@@ -2,6 +2,7 @@ from __future__ import annotations   # defer annotation eval so build-only panda
 
 import logging
 import json
+import uuid
 from pathlib import Path
 from typing import Dict, List, Tuple
 import faiss
@@ -20,19 +21,34 @@ from config import (
     FEATURE_SHEET_TABS,
     FEATURE_SHEET_GSHEET_ID,
     FEATURE_SHEET_TAB_GIDS,
+    FEATURE_VECTOR_BACKEND,
+    QDRANT_URL,
+    QDRANT_API_KEY,
+    QDRANT_FEATURE_COLLECTION,
     get_embeddings,
 )
 
 logger = logging.getLogger(__name__)
 
+# Stable namespace so the same feature (tab + Feature ID) always maps to the same
+# Qdrant point ID → an edited row re-upserts in place instead of duplicating.
+_QDRANT_NS = uuid.UUID("6f9619ff-8b86-d011-b42d-00cf4fc964ff")
+
 
 class FeatureLoader:
 
     def __init__(self):
+        self.backend = FEATURE_VECTOR_BACKEND
         self.embeddings = get_embeddings()
         self.faiss_index = None
         self.metadata = []
         self.features_df = None
+        self._bucket_map = {}
+        self._id_to_pos = {}
+        self._qdrant = None
+        if self.backend == "qdrant":
+            from qdrant_client import QdrantClient
+            self._qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=30)
         # Bucket -> [metadata positions], for same-bucket sibling rollup
         self._bucket_map = {}
 
@@ -266,6 +282,9 @@ class FeatureLoader:
         logger.info("Feature index saved")
 
     def load_index(self):
+        if self.backend == "qdrant":
+            self._load_qdrant_payloads()
+            return
         if FEATURE_FAISS_INDEX_PATH.exists():
             self.faiss_index = faiss.read_index(str(FEATURE_FAISS_INDEX_PATH))
         if FEATURE_METADATA_PATH.exists():
@@ -276,6 +295,8 @@ class FeatureLoader:
 
     def search_vec(self, query_embedding, k: int = 3) -> List[Dict]:
         """Search using a pre-computed query vector (lets the caller embed once)."""
+        if self.backend == "qdrant":
+            return self._search_qdrant(query_embedding, k)
         if self.faiss_index is None or not self.metadata:
             return []
         qe = np.array(query_embedding).astype('float32').reshape(1, -1)
@@ -322,7 +343,7 @@ class FeatureLoader:
         return ordered
 
     def search(self, query_text: str, k: int = 3) -> List[Dict]:
-        if self.faiss_index is None or not self.metadata:
+        if not self.is_ready():
             return []
         return self.search_vec(self.embeddings.embed_query(query_text), k)
 
@@ -339,7 +360,94 @@ class FeatureLoader:
             texts = self.prepare_feature_texts(df)
         if not texts:
             return False
+
+        if self.backend == "qdrant":
+            return self._upsert_qdrant(texts)
+
         self.create_embeddings(texts)
         self.save_index()
         logger.info(f"Feature index built with {len(self.metadata)} features")
         return True
+
+    # ── Qdrant backend ──────────────────────────────────────────────────────────
+    def _ensure_qdrant_collection(self, dim: int):
+        from qdrant_client.models import Distance, VectorParams
+        if not self._qdrant.collection_exists(QDRANT_FEATURE_COLLECTION):
+            self._qdrant.create_collection(
+                QDRANT_FEATURE_COLLECTION,
+                vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
+            )
+            logger.info(f"Created Qdrant collection '{QDRANT_FEATURE_COLLECTION}' (dim={dim})")
+
+    def _upsert_qdrant(self, texts: List[Tuple[str, Dict]]) -> bool:
+        """Embed feature rows and upsert them into Qdrant. Stable point IDs (tab +
+        Feature ID) mean edited rows overwrite in place; the whole catalogue is
+        re-sent each rebuild, so removed rows are pruned by recreating the collection."""
+        from qdrant_client.models import PointStruct
+        text_only = [t[0] for t in texts]
+        logger.info(f"Embedding {len(text_only)} features for Qdrant...")
+        vectors = self.embeddings.embed_documents(text_only)
+        dim = len(vectors[0])
+        # Full rebuild = authoritative snapshot → recreate so deleted rows don't linger.
+        if self._qdrant.collection_exists(QDRANT_FEATURE_COLLECTION):
+            self._qdrant.delete_collection(QDRANT_FEATURE_COLLECTION)
+        self._ensure_qdrant_collection(dim)
+        points = []
+        for vec, (_, m) in zip(vectors, texts):
+            pid = str(uuid.uuid5(_QDRANT_NS, f"{m.get('source_file')}:{m.get('feature_id')}"))
+            points.append(PointStruct(id=pid, vector=[float(x) for x in vec], payload=m))
+        self._qdrant.upsert(QDRANT_FEATURE_COLLECTION, points=points)
+        self.metadata = [m for _, m in texts]   # for count/reporting only
+        logger.info(f"Upserted {len(points)} features to Qdrant '{QDRANT_FEATURE_COLLECTION}'")
+        return True
+
+    def _search_qdrant(self, query_embedding, k: int) -> List[Dict]:
+        try:
+            hits = self._qdrant.query_points(
+                collection_name=QDRANT_FEATURE_COLLECTION,
+                query=[float(x) for x in query_embedding],
+                limit=k, with_payload=True,
+            ).points
+        except Exception as e:
+            logger.error(f"Qdrant feature search failed: {e}")
+            return []
+        # Map each hit back to the in-memory payload object (scrolled in load_index) so
+        # identity-based de-dup in search_vec_grouped works exactly like the FAISS path.
+        results = []
+        for h in hits:
+            pos = self._id_to_pos.get(h.id)
+            meta = self.metadata[pos] if pos is not None else h.payload
+            results.append({"similarity_score": float(h.score), "metadata": meta})
+        return results
+
+    def _load_qdrant_payloads(self):
+        """Scroll all feature payloads (metadata only — NOT vectors) from Qdrant into
+        memory so bucket-rollup grouped search works exactly like the FAISS path. The
+        vectors stay in Qdrant; this is ~122 small dicts."""
+        self.metadata = []
+        self._id_to_pos = {}
+        try:
+            if not self._qdrant.collection_exists(QDRANT_FEATURE_COLLECTION):
+                logger.warning(f"Qdrant collection '{QDRANT_FEATURE_COLLECTION}' does not exist yet")
+                self._build_bucket_map()
+                return
+            offset = None
+            while True:
+                points, offset = self._qdrant.scroll(
+                    QDRANT_FEATURE_COLLECTION, with_payload=True, with_vectors=False,
+                    limit=256, offset=offset,
+                )
+                for p in points:
+                    self._id_to_pos[p.id] = len(self.metadata)
+                    self.metadata.append(p.payload)
+                if offset is None:
+                    break
+        except Exception as e:
+            logger.error(f"Failed to scroll Qdrant payloads: {e}")
+        self._build_bucket_map()
+        logger.info(f"Loaded {len(self.metadata)} feature payloads from Qdrant")
+
+    def is_ready(self) -> bool:
+        if self.backend == "qdrant":
+            return bool(self.metadata)   # populated by load_index() scroll
+        return bool(self.faiss_index is not None and self.metadata)
