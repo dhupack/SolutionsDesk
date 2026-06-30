@@ -1,13 +1,9 @@
-"""Extraction module for processing proposal documents."""
+"""Extraction module — downloads proposal documents from Google Drive.
 
-from src.extraction.document_parser import DocumentParser
-from src.extraction.section_identifier import SectionIdentifier
-from src.extraction.markdown_converter import MarkdownConverter
+Parsing/embedding of those files is handled directly by
+src/loaders/proposal_loader.py; this package only fetches the sources.
+"""
+
 from src.extraction.extraction_pipeline import ExtractionPipeline
 
-__all__ = [
-    "DocumentParser",
-    "SectionIdentifier", 
-    "MarkdownConverter",
-    "ExtractionPipeline"
-]
+__all__ = ["ExtractionPipeline"]

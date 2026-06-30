@@ -1,33 +1,27 @@
 """
-Extraction pipeline orchestrator for downloading and processing proposal documents.
+Proposal-document downloader.
+
+Pulls raw proposal files (PDF/PPT/Word) from the shared Google Drive folder via
+gdown. Parsing/embedding is handled directly by src/loaders/proposal_loader.py —
+this module only fetches the source files.
 """
 
 import logging
-import json
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Optional
 import gdown
 
-from src.extraction.document_parser import DocumentParser
-from src.extraction.section_identifier import SectionIdentifier
-from src.extraction.markdown_converter import MarkdownConverter
-from config import (
-    RAW_PROPOSALS_DIR,
-    EXTRACTED_PROPOSALS_DIR,
-    EXTRACTION_METADATA_PATH,
-    GOOGLE_DRIVE_FOLDER_ID
-)
+from config import RAW_PROPOSALS_DIR, EXTRACTED_PROPOSALS_DIR, GOOGLE_DRIVE_FOLDER_ID
 
 logger = logging.getLogger(__name__)
 
 
 class ExtractionPipeline:
-    """Orchestrate extraction of proposal documents."""
+    """Download proposal documents from Google Drive."""
 
     def __init__(self, raw_dir: Path = RAW_PROPOSALS_DIR, output_dir: Path = EXTRACTED_PROPOSALS_DIR):
         self.raw_dir = Path(raw_dir)
         self.output_dir = Path(output_dir)
-        self.metadata_list = []
 
     def _setup_cookies(self):
         """
@@ -70,136 +64,3 @@ class ExtractionPipeline:
         except Exception as e:
             logger.error(f"Error downloading from Google Drive: {e}")
             raise
-
-    def process_file(self, file_path: str, client_name: str, document_name: str) -> Optional[Dict]:
-        """
-        Process a single proposal document.
-        
-        Args:
-            file_path: Path to the document file
-            client_name: Name of the client
-            document_name: Name of the document
-            
-        Returns:
-            Metadata dict or None if extraction failed
-        """
-        file_path = Path(file_path)
-        
-        if not file_path.exists():
-            logger.error(f"File does not exist: {file_path}")
-            return None
-
-        try:
-            logger.info(f"Processing: {file_path}")
-            
-            # Step 1: Extract text from document
-            full_text, content_info, file_type = DocumentParser.extract_from_file(str(file_path))
-            
-            # Step 2: Identify problems and solutions
-            sections = SectionIdentifier.extract_best_sections(full_text)
-            
-            # Step 3: Convert to markdown
-            markdown_content = MarkdownConverter.create_markdown_content(
-                client_name=client_name,
-                document_name=document_name,
-                sections=sections,
-                original_file_format=file_type,
-                original_file_path=str(file_path)
-            )
-            
-            # Step 4: Save markdown file
-            md_file_path = MarkdownConverter.save_markdown_file(
-                self.output_dir,
-                client_name,
-                document_name,
-                markdown_content
-            )
-            
-            # Step 5: Create and save metadata
-            metadata = MarkdownConverter.create_metadata(
-                file_path=md_file_path,
-                client_name=client_name,
-                document_name=document_name,
-                original_file_format=file_type,
-                original_file_path=str(file_path),
-                extracted_sections=sections,
-                extraction_status="success"
-            )
-            
-            self.metadata_list.append(metadata)
-            logger.info(f"Successfully processed: {file_path}")
-            return metadata
-            
-        except Exception as e:
-            logger.error(f"Error processing {file_path}: {str(e)}")
-            metadata = MarkdownConverter.create_metadata(
-                file_path="",
-                client_name=client_name,
-                document_name=document_name,
-                original_file_format="",
-                original_file_path=str(file_path),
-                extracted_sections={},
-                extraction_status=f"failed: {str(e)}"
-            )
-            self.metadata_list.append(metadata)
-            return None
-
-    def process_batch(self, file_configs: List[Dict]) -> Dict:
-        """
-        Process a batch of files.
-        
-        Args:
-            file_configs: List of dicts with keys: file_path, client_name, document_name
-            
-        Returns:
-            Summary dict with success/failure counts
-        """
-        success_count = 0
-        failure_count = 0
-
-        for config in file_configs:
-            result = self.process_file(
-                file_path=config['file_path'],
-                client_name=config['client_name'],
-                document_name=config['document_name']
-            )
-            if result:
-                success_count += 1
-            else:
-                failure_count += 1
-
-        return {
-            "total": len(file_configs),
-            "success": success_count,
-            "failure": failure_count,
-            "metadata_file": self._save_metadata()
-        }
-
-    def _save_metadata(self) -> Path:
-        """
-        Save extraction metadata to JSON file.
-        """
-        EXTRACTION_METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
-        
-        try:
-            with open(EXTRACTION_METADATA_PATH, 'w', encoding='utf-8') as f:
-                json.dump(self.metadata_list, f, indent=2)
-            logger.info(f"Saved extraction metadata to {EXTRACTION_METADATA_PATH}")
-            return EXTRACTION_METADATA_PATH
-        except Exception as e:
-            logger.error(f"Error saving metadata: {str(e)}")
-            raise
-
-    def get_extracted_files(self) -> List[Path]:
-        """
-        Get list of all extracted markdown files.
-        """
-        if not self.output_dir.exists():
-            return []
-        return list(self.output_dir.glob("*.md"))
-
-    def get_metadata(self) -> List[Dict]:
-        """
-        Get extraction metadata for all processed files.
-        """
-        return self.metadata_list
