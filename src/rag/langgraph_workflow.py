@@ -6,6 +6,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from src.retrieval.tier_retrieval import TierRetrieval
+from src.loaders.feature_loader import FeatureLoader
 from config import get_llm
 
 logger = logging.getLogger(__name__)
