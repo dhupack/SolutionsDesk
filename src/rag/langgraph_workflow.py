@@ -201,7 +201,7 @@ class RAGWorkflow:
             deps   = str(row.get('Dependencies / Inputs', ''))
             sales  = str(row.get('Sales Talking Point', ''))
             module = str(row.get('Module / Area', ''))
-            product = 'CPL' if any(b in bucket for b in ['CPL', 'CPoL', 'Platform']) else 'XSWIFT'
+            product = FeatureLoader.product_of(r['metadata'])
             if r.get('is_sibling'):
                 relevance = "[Relevance: RELATED · same bucket]"
             else:
