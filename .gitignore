@@ -12,6 +12,12 @@ build/
 # proposal index rollback backups
 embeddings/*.bak
 
+# Vector indexes — vectors now live in Qdrant (FEATURE/PROPOSAL_VECTOR_BACKEND=qdrant).
+# Kept locally as a FAISS fallback but no longer committed (large binaries; not used
+# on Render, which queries Qdrant). config.py recreates the empty dir at startup.
+embeddings/*.faiss
+embeddings/*.json
+
 # logs (build, profiling, trace) — all regenerable, never commit
 *.log
 

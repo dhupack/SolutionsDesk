@@ -143,7 +143,7 @@ class TierRetrieval:
             what = str(row.get('What it does', ''))[:100]
             value = str(row.get('Business Value / Impact', ''))[:80]
             line = f"  #{fid} {name} [{module}] — {what} | Value: {value}"
-            if any(b in bucket for b in ['CPL', 'CPoL', 'Platform']):
+            if self.feature_loader.product_of(item) == 'CPL':
                 cpl_lines.append(line)
             else:
                 xswift_lines.append(line)

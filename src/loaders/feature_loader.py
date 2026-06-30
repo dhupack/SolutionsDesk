@@ -266,6 +266,20 @@ class FeatureLoader:
     def _bucket_of(meta: Dict) -> str:
         return str((meta.get("full_row") or {}).get("Bucket", "")).strip()
 
+    @staticmethod
+    def product_of(meta: Dict) -> str:
+        """Which catalogue a feature belongs to: 'XSWIFT' or 'CPL'. Uses the real
+        source tab (ground truth); only falls back to the Bucket-text heuristic for
+        legacy rows that predate per-tab provenance (avoids mislabeling e.g. an
+        XSWIFT feature whose Bucket is 'Core Platform' as CPL)."""
+        src = str(meta.get("source_file", "")).upper()
+        if "CPL" in src:
+            return "CPL"
+        if "XSWIFT" in src:
+            return "XSWIFT"
+        bucket = str((meta.get("full_row") or {}).get("Bucket", ""))
+        return "CPL" if any(b in bucket for b in ["CPL", "CPoL", "Platform"]) else "XSWIFT"
+
     def _build_bucket_map(self):
         """Index Bucket -> [metadata positions] so a hit can pull its bucket-mates."""
         self._bucket_map = {}
