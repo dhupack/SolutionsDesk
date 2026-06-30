@@ -618,11 +618,18 @@ def _run_rebuild():
         del loader
         gc.collect()
 
-        # Reload ONLY the feature index into the existing live app (memory-light).
-        rag.tier_retrieval.initialize_feature_index()
-        gc.collect()
-
-        git_ok, git_msg = _commit_index_to_git()
+        from config import FEATURE_VECTOR_BACKEND
+        if FEATURE_VECTOR_BACKEND == "qdrant":
+            # Vectors now live in Qdrant (durable, queried live). Just refresh the live
+            # app's in-memory payloads/bucket-map (cheap) — no RAM index reload, no git.
+            rag.tier_retrieval.feature_loader.load_index()
+            rag.tier_retrieval.feature_loader_initialized = rag.tier_retrieval.feature_loader.is_ready()
+            git_ok, git_msg = True, 'qdrant backend — no git write-back needed'
+        else:
+            # FAISS: reload the new index into RAM, then commit it to git so it survives restarts.
+            rag.tier_retrieval.initialize_feature_index()
+            gc.collect()
+            git_ok, git_msg = _commit_index_to_git()
         _rebuild_state['last'] = {
             'status': 'rebuilt', 'features': feature_count,
             'git_writeback': git_ok, 'git_message': git_msg,

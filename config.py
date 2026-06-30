@@ -105,6 +105,18 @@ FEATURE_SHEET_TAB_GID = {
     "CPL":    os.getenv("FEATURE_SHEET_CPL_GID", "1728231193"),     # CPL_Feature_Catalogue tab
 }
 
+# ── Vector backend for the FEATURE catalogue ────────────────────────────────────
+# 'faiss' (default, in-process file committed to git) or 'qdrant' (managed/self-hosted
+# vector DB). Proposals always use FAISS. With 'qdrant', the feature rebuild upserts
+# vectors to Qdrant — no git write-back, no ephemeral-disk/OOM concerns, durable across
+# restarts. Switch back to faiss anytime by setting this to 'faiss'.
+FEATURE_VECTOR_BACKEND    = os.getenv("FEATURE_VECTOR_BACKEND", "faiss").lower()
+PROPOSAL_VECTOR_BACKEND   = os.getenv("PROPOSAL_VECTOR_BACKEND", "faiss").lower()
+QDRANT_URL                = os.getenv("QDRANT_URL", "")
+QDRANT_API_KEY            = os.getenv("QDRANT_API_KEY", "")
+QDRANT_FEATURE_COLLECTION = os.getenv("QDRANT_FEATURE_COLLECTION", "feature_catalog")
+QDRANT_PROPOSAL_COLLECTION = os.getenv("QDRANT_PROPOSAL_COLLECTION", "proposals")
+
 # ── Rebuild endpoint + git write-back (option 2) ────────────────────────────────
 # REBUILD_TOKEN protects POST /api/rebuild-catalog. GITHUB_TOKEN lets the running
 # server commit the freshly built index back to the repo so it survives restarts.

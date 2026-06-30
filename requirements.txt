@@ -10,6 +10,7 @@ langgraph>=0.2.0
 langchain-openai>=0.1.0
 langchain-groq>=0.1.0
 faiss-cpu>=1.7.4
+qdrant-client>=1.7.0   # feature catalogue vector store when FEATURE_VECTOR_BACKEND=qdrant
 # NOTE: langchain-huggingface + sentence-transformers are intentionally NOT installed.
 # They pull in transformers + torch (~190MB RAM), which langchain_core imports at
 # startup even on the OpenAI path — that overhead pushed the 512MB free tier into OOM
